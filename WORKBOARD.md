@@ -1,0 +1,68 @@
+# WORKBOARD — deux agents
+
+## Règles
+- CLAIM avant code.
+- Un seul owner par feature.
+- Owned paths exclusifs pendant `IN_PROGRESS`.
+- Les zones SERIAL exigent un handoff.
+- Une feature doit être petite, testable et mergeable.
+
+## Status
+`READY` → `CLAIMED` → `IN_PROGRESS` → `REVIEW` → `MERGED`
+
+| ID | Feature | Owner | Depends on | Owned paths | Contract/API frozen | Tests / acceptance | Status |
+|---|---|---|---|---|---|---|---|
+| F00 | Socle PostgreSQL 18 + pgx + Goose | Agent A | - | `go.mod`, `go.sum`, `Dockerfile`, `compose.yml`, `.github/workflows/ci.yml`, `internal/config/**`, `internal/di/**`, `internal/adapters/stores/postgres/**`, suppression de `internal/adapters/stores/sqlite/**`, `docs/POSTGRESQL.md`, `README.md` | `postgres.Store` satisfait `ports.ReadinessStore`; migrations SQL embarquées | démarrage, migrations idempotentes, readiness, tests PostgreSQL | REVIEW |
+| F01 | Tenant + Customer + Vehicle | Agent A | F00 | `internal/core/customer/**`, `internal/core/vehicle/**`, `internal/adapters/stores/postgres/customer*.go`, `internal/adapters/stores/postgres/vehicle*.go`, migrations associées, handlers/services associés | `tenant_id` uniquement depuis contexte serveur; téléphone normalisé; plaque normalisée | create/find by phone, tenant isolation | CLAIMED |
+| F02A | Mini-planning atelier — backend | Agent A | F00 | `internal/core/appointment/**`, store PostgreSQL, handlers/services scheduling, migrations associées | scheduling domain API; recheck avant booking; idempotence écriture | disponibilité + création/modification/annulation + tenant isolation | READY |
+| F02B | Mini-planning atelier — UI | Agent B | F02A | vues planning, fragments HTMX et styles locaux non globaux | consomme le contrat HTTP figé par F02A | rendu + progressive enhancement + a11y | READY |
+| F03 | Voice lookup customer tool | Agent A | F01 | `internal/adapters/voice/**` | webhook/tool schema | known + unknown phone | READY |
+| F04 | Dashboard Today | Agent B | F02 | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | CLAIMED |
+| F05 | Voice book appointment | Agent A | F02,F03 | voice tool + booking adapter | `SchedulingProvider.Book` | recheck + idempotency | BLOCKED |
+| F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke | IN_PROGRESS |
+
+Notes (Agent B):
+- F04/F06 owned paths said `web/...`; no such directory exists. templ output is Go
+  code, so views will live in `internal/web/views/` and the dashboard handler in the
+  existing `internal/adapters/handlers/`. Paths updated above, no second convention.
+- F06 is CSS only. No Go, no new dependency, no DI change — it merges independently
+  of F00.
+- **Blocked, needs Agent A:** every templ view (F04, F02B) needs
+  `github.com/a-h/templ v0.3.1020` in `go.mod` plus one wiring line in the DI root.
+  Both are SERIAL zones Agent A holds until F00 is MERGED, so Agent B is not
+  touching them. Either add the dependency during F00, or hand `go.mod` over for a
+  one-line change once F00 lands. The `GET /app` contract is frozen meanwhile
+  (`docs/contracts/F04-dashboard-today.md`), so no UI work is waiting on design.
+
+Notes (Agent A):
+- F00 review croisée PASS le 30 juillet 2026, sans finding résiduel.
+- Vérifications F00 : `go test -race ./...`, `go vet ./...`, `go build ./...`,
+  build Docker, validation Compose, test PostgreSQL 18.4 réel et smoke
+  `/healthz` + `/readyz`.
+- F00 reste en `REVIEW` jusqu'au commit/merge ; les zones SERIAL restent donc
+  détenues par Agent A.
+
+## SERIAL zones
+Current owner must be written here before edits.
+
+| Zone | Owner | Until | Reason |
+|---|---|---|---|
+| `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
+| DI root | Agent A | F00 MERGED | wiring PostgreSQL |
+| DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
+| `compose.yml` | Agent A | F00 MERGED | service PostgreSQL 18 |
+| `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
+| global layout/tokens | Agent B | F06 MERGED | global UI contract |
+| provider interfaces | - | - | cross-feature contract |
+
+## Handoff template
+```
+Feature:
+From:
+To:
+What is merged:
+Contracts that MUST NOT change:
+Known limitations:
+Tests run:
+Next safe task:
+```
