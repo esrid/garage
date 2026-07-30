@@ -160,6 +160,14 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 			t.Errorf("POST %s status = %d, want %d", route.path, response.Code, http.StatusUnauthorized)
 		}
 	}
+
+	request = httptest.NewRequest(http.MethodPost, "/webhooks/elevenlabs/post-call", strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusServiceUnavailable {
+		t.Errorf("disabled post-call webhook status = %d, want %d", response.Code, http.StatusServiceUnavailable)
+	}
 }
 
 func TestNewRejectsInvalidVoiceCredentialsBeforeOpeningDatabase(t *testing.T) {

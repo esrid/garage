@@ -17,6 +17,8 @@ the HTTP server starts:
   commands;
 - `00004_follow_up_request.sql`: tenant-scoped callback and quote requests;
 - `00005_authentication.sql`: staff credentials and browser sessions.
+- `00006_conversation.sql`: immutable ElevenLabs post-call events and the
+  tenant-scoped normalized conversation history.
 
 ## Tenant, customer and vehicle schema
 
@@ -64,6 +66,14 @@ IDs behind a composite foreign key to `staff_users (tenant_id, id)`; a session
 cannot be attached to a staff member through another tenant. Only a SHA-256
 digest of the opaque cookie token is stored. Expiry is enforced in every lookup,
 independently of eventual deletion of expired rows.
+
+Post-call events are immutable and unique by tenant, provider, conversation and
+provider event time. Their raw-body SHA-256 makes an exact provider retry
+idempotent and turns same-key/different-content delivery into an explicit
+conflict. The current conversation snapshot only advances to an event whose
+provider timestamp is at least as recent as the stored snapshot. Transcript,
+analysis, metadata and raw payload remain JSONB; normalized fiat cost is stored
+as integer micro-USD so reporting does not depend on binary floating point.
 
 ## Integration tests
 

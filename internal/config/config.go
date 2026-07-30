@@ -19,28 +19,32 @@ const (
 )
 
 type Config struct {
-	HTTPAddr          string
-	DatabaseDSN       string
-	VoiceToolTokens   string
-	MaxHeaderBytes    int
-	ReadHeaderTimeout time.Duration
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
-	ShutdownTimeout   time.Duration
+	HTTPAddr                string
+	DatabaseDSN             string
+	VoiceToolTokens         string
+	ElevenLabsWebhookSecret string
+	ElevenLabsAgentTenants  string
+	MaxHeaderBytes          int
+	ReadHeaderTimeout       time.Duration
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	IdleTimeout             time.Duration
+	ShutdownTimeout         time.Duration
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		HTTPAddr:          envOrDefault("HTTP_ADDR", defaultHTTPAddr),
-		DatabaseDSN:       envOrDefault("DATABASE_DSN", os.Getenv("DSN")),
-		VoiceToolTokens:   os.Getenv("VOICE_TOOL_TOKENS"),
-		MaxHeaderBytes:    defaultMaxHeaderBytes,
-		ReadHeaderTimeout: defaultReadHeaderTimeout,
-		ReadTimeout:       defaultReadTimeout,
-		WriteTimeout:      defaultWriteTimeout,
-		IdleTimeout:       defaultIdleTimeout,
-		ShutdownTimeout:   defaultShutdownTimeout,
+		HTTPAddr:                envOrDefault("HTTP_ADDR", defaultHTTPAddr),
+		DatabaseDSN:             envOrDefault("DATABASE_DSN", os.Getenv("DSN")),
+		VoiceToolTokens:         os.Getenv("VOICE_TOOL_TOKENS"),
+		ElevenLabsWebhookSecret: os.Getenv("ELEVENLABS_WEBHOOK_SECRET"),
+		ElevenLabsAgentTenants:  os.Getenv("ELEVENLABS_AGENT_TENANTS"),
+		MaxHeaderBytes:          defaultMaxHeaderBytes,
+		ReadHeaderTimeout:       defaultReadHeaderTimeout,
+		ReadTimeout:             defaultReadTimeout,
+		WriteTimeout:            defaultWriteTimeout,
+		IdleTimeout:             defaultIdleTimeout,
+		ShutdownTimeout:         defaultShutdownTimeout,
 	}
 	if value := os.Getenv("HTTP_MAX_HEADER_BYTES"); value != "" {
 		parsed, err := strconv.Atoi(value)

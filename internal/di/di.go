@@ -18,6 +18,7 @@ import (
 	"github.com/esrid/garage/internal/config"
 	"github.com/esrid/garage/internal/core/appointment"
 	coreauth "github.com/esrid/garage/internal/core/auth"
+	"github.com/esrid/garage/internal/core/conversation"
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
@@ -51,11 +52,20 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
 	appointmentTools := voice.NewAppointmentTools(scheduling, voiceAuthenticator)
 	followUpTool := voice.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
+	postCallWebhook, err := voice.NewPostCallWebhook(
+		conversation.NewService(database),
+		cfg.ElevenLabsWebhookSecret,
+		cfg.ElevenLabsAgentTenants,
+	)
+	if err != nil {
+		_ = database.Close()
+		return nil, err
+	}
 	authenticationService := coreauth.NewService(database)
 	authentication := handlers.NewAuthentication(authenticationService)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, authentication, authenticationService),
+		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, postCallWebhook, authentication, authenticationService),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

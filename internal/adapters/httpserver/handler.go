@@ -18,7 +18,7 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool, authentication *handlers.Authentication, sessions sessionVerifier) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool, postCallWebhook *voice.PostCallWebhook, authentication *handlers.Authentication, sessions sessionVerifier) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
@@ -42,6 +42,7 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *ha
 	mux.HandleFunc("POST /voice/tools/appointment-availability", appointmentTools.Availability)
 	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
 	mux.Handle("POST /voice/tools/follow-up-request", followUpTool)
+	mux.Handle("POST /webhooks/elevenlabs/post-call", postCallWebhook)
 
 	// The public site (F07) owns "/" and the legal pages, and the login page (F13)
 	// is where the F09 middleware sends a browser without a session. Neither has a

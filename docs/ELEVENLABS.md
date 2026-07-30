@@ -18,6 +18,8 @@ The F05 scheduling contract is in
 [`contracts/F05-voice-book-appointment.md`](contracts/F05-voice-book-appointment.md).
 The F08 follow-up contract is in
 [`contracts/F08-follow-up-request.md`](contracts/F08-follow-up-request.md).
+The F14 post-call contract is in
+[`contracts/F14-post-call.md`](contracts/F14-post-call.md).
 
 ## Authentication
 
@@ -69,6 +71,30 @@ locally instead of invoking an ElevenLabs management endpoint. Exact repeated
 calls return the first request; changed content for the same conversation and
 request kind conflicts explicitly.
 
+## Post-call history and metering
+
+F14 receives `post_call_transcription` at
+`POST /webhooks/elevenlabs/post-call`. Configure the workspace webhook for
+`events: ["transcript"]`, JSON transcript format and no audio. Its HMAC secret
+is supplied as `ELEVENLABS_WEBHOOK_SECRET`; `ELEVENLABS_AGENT_TENANTS` maps each
+server-configured ElevenLabs agent ID to a tenant UUID. Neither tenant IDs nor
+credentials come from dynamic variables or the LLM.
+
+Signature verification is performed over the bounded raw body before JSON
+parsing. The official Python SDK source and tests at commit
+`061e28b4878caf7aeaa28baaceeeae8cf02c8e4d` were inspected on 2026-07-30 because
+the prose documentation does not spell out the digest: it uses
+HMAC-SHA-256 over `<timestamp>.<raw-body>`, a lowercase hexadecimal `v0`
+signature and a 30-minute past-timestamp tolerance. The implementation uses
+the Go standard library and does not import either provider SDK.
+
+ElevenLabs retries are disabled by default and, when enabled, use identical
+payloads without a retry marker. F14 therefore deduplicates durably by tenant,
+conversation and event timestamp plus a hash of the exact body. It returns 200
+only after the event and normalized conversation are committed. Provider
+`cost_fiat` is stored as micro-USD using exact decimal half-up rounding; the
+older `cost` example has no documented unit and is never treated as currency.
+
 ## Costs and quotas
 
 F03, F05 and F08 make no ElevenLabs management API request and therefore add no
@@ -84,3 +110,7 @@ workspace and are not guessed or duplicated in code.
 - [Dynamic and secret variables](https://elevenlabs.io/docs/eleven-agents/customization/personalization/dynamic-variables)
 - [Environment variables for tool URLs and headers](https://elevenlabs.io/docs/eleven-agents/integrate/environment-variables)
 - [Webhooks and idempotency](https://elevenlabs.io/docs/eleven-api/resources/webhooks)
+- [Post-call webhook payloads](https://elevenlabs.io/docs/eleven-agents/workflows/post-call-webhooks)
+- [Official Python HMAC implementation (source inspected)](https://github.com/elevenlabs/elevenlabs-python/blob/061e28b4878caf7aeaa28baaceeeae8cf02c8e4d/src/elevenlabs/webhooks_custom.py)
+- [Conversation response and `cost_fiat`](https://elevenlabs.io/docs/api-reference/conversations/get)
+- [July 2026 `cost_fiat` changelog](https://elevenlabs.io/docs/changelog/2026/7/6)

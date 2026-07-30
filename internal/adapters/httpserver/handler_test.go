@@ -40,9 +40,18 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		voice.NewCustomerLookup(nil, nil),
 		voice.NewAppointmentTools(nil, nil),
 		voice.NewFollowUpTool(nil, nil),
+		mustDisabledPostCallWebhook(),
 		handlers.NewAuthentication(nil),
 		sessionVerifierStub{},
 	)
+}
+
+func mustDisabledPostCallWebhook() *voice.PostCallWebhook {
+	handler, err := voice.NewPostCallWebhook(nil, "", "")
+	if err != nil {
+		panic(err)
+	}
+	return handler
 }
 
 func TestHealthEndpoints(t *testing.T) {
