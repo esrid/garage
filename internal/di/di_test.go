@@ -94,6 +94,7 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 	}{
 		{"/voice/tools/appointment-availability", `{"day":"2030-01-02T12:00:00-04:00","duration_minutes":60}`},
 		{"/voice/tools/appointment-book", `{"conversation_id":"conv","customer_id":"019c09ea-bca7-7a5d-98b6-3f3b3ed79ea1","service_label":"Révision","start_at":"2030-01-02T08:00:00-04:00","duration_minutes":60}`},
+		{"/voice/tools/follow-up-request", `{"conversation_id":"conv","kind":"callback","phone":"+596696123456","details":"Rappeler."}`},
 	}
 	for _, route := range voiceRoutes {
 		request = httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(route.body))

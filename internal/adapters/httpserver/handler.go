@@ -18,7 +18,7 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
@@ -34,6 +34,7 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *ha
 	mux.Handle("POST /voice/tools/customer-lookup", customerLookup)
 	mux.HandleFunc("POST /voice/tools/appointment-availability", appointmentTools.Availability)
 	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
+	mux.Handle("POST /voice/tools/follow-up-request", followUpTool)
 
 	// The public site (F07) owns "/" and the legal pages. It has no dependencies,
 	// so it is built here instead of the DI root, which Agent A holds for F05.

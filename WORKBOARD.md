@@ -21,7 +21,7 @@
 | F05 | Voice find slots + book appointment | Agent A | F02A,F03 | `docs/contracts/F05-voice-book-appointment.md`, `docs/ELEVENLABS.md` (ajout F05 uniquement), `internal/adapters/voice/appointment_booking*.go`, `internal/adapters/httpserver/handler.go` (deux routes uniquement), `internal/di/**` (wiring uniquement) | `docs/contracts/F05-voice-book-appointment.md` (frozen 2026-07-30); interfaces `SchedulingProvider` inchangées | disponibilité persistée + confirmation après commit + auth/isolation + idempotence déterministe | REVIEW |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
 | F07 | Site public + SEO (PRD §11) | Agent B | - | `internal/web/views/site*`, `internal/adapters/handlers/site*.go`, `assets/src/css/site.css`, `assets/src/css/app.css` (un `@import`), `internal/adapters/httpserver/handler.go` (une ligne de montage) | routes `/`, `/fonctionnalites`, `/tarifs`, `/garages`, `/demo`, `/contact`, `/mentions-legales`, `/confidentialite`, `/cgv`, `/cgu`, `/robots.txt`, `/sitemap.xml` — aucun `tenant_id`, aucun état serveur | 12 tests ; SEO head par page, sitemap trié, footer sans 404, CTA sans self-link ; smoke sur PostgreSQL 18.4 réel ; screenshots 1280 + 380 px réels, clair et sombre | REVIEW |
-| F08 | Demande vocale de rappel/devis | Agent A | F01,F03 | `docs/contracts/F08-follow-up-request.md`, `docs/DATABASE.md` (ajout F08), `docs/ELEVENLABS.md` (ajout F08), `internal/core/followup/**`, `internal/adapters/stores/postgres/followup*.go`, `internal/adapters/stores/postgres/migrations/00004_follow_up_request.sql`, `internal/adapters/voice/followup*.go`; route et DI uniquement après release F02B | `docs/contracts/F08-follow-up-request.md` (frozen 2026-07-30); tenant depuis Bearer, liaison client par téléphone côté serveur | connu/inconnu + tenant isolation + rejeu identique + conflit + erreurs bornées | IN_PROGRESS |
+| F08 | Demande vocale de rappel/devis | Agent A | F01,F03 | `docs/contracts/F08-follow-up-request.md`, `docs/DATABASE.md` (ajout F08), `docs/ELEVENLABS.md` (ajout F08), `internal/core/followup/**`, `internal/adapters/stores/postgres/followup*.go`, `internal/adapters/stores/postgres/migrations/00004_follow_up_request.sql`, `internal/adapters/voice/followup*.go`, `internal/adapters/httpserver/handler.go` (une route), `internal/di/**` (wiring uniquement) | `docs/contracts/F08-follow-up-request.md` (frozen 2026-07-30); tenant depuis Bearer, liaison client par téléphone côté serveur | connu/inconnu + tenant isolation + rejeu identique + conflit + erreurs bornées | REVIEW |
 
 PR #1 was merged by the founder as `229598e` on `main`. The local
 `feat/foundation-postgres-css` HEAD is the second parent of that merge and has no
@@ -65,14 +65,13 @@ Le Bearer F03 établit le tenant et le store rattache éventuellement le client
 par téléphone normalisé dans ce même tenant. Aucun provider externe ni nouvelle
 dépendance n'est introduit.
 
-### Handoff demandé — Agent A à Agent B pour F08
+### Handoff résolu — Agent A et Agent B pour F08
 
-Le commit F02B `7e5b10b` est visible et la suite globale passe, mais F02B est
-encore `IN_PROGRESS` et la zone DI reste attribuée à Agent B jusqu'à `REVIEW`.
-Merci de terminer ton handoff puis de libérer explicitement la DI. F08 est prêt :
-il ne restera à Agent A qu'à construire `FollowUpTool`, ajouter un argument à
-`httpserver.New` et monter `POST /voice/tools/follow-up-request`. Aucun fichier
-vue/CSS/handler planning ne sera modifié.
+Agent B a livré F02B dans `7e5b10b`, passé la feature en `REVIEW` et libéré la
+DI dans `c9070db`. Agent A CLAIM maintenant la DI pour construire
+`FollowUpTool`, ajouter un argument à `httpserver.New` et monter uniquement
+`POST /voice/tools/follow-up-request`. Aucun fichier vue/CSS/handler planning
+ne sera modifié.
 
 - F06 is CSS only. No Go, no new dependency, no DI change — it merges independently
   of F00.
@@ -609,6 +608,43 @@ Next safe task Agent B : F07 reste en review ; sinon UX/a11y ou les pages
   légales à compléter quand le fondateur fournit l'identité.
 ```
 
+## Open handoff — Agent A to Agent B, F08 review, 2026-07-30
+
+```
+Feature: F08 Demande vocale de rappel/devis
+From: Agent A (backend)
+To: Agent B (reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Contrat gelé avant code : docs/contracts/F08-follow-up-request.md
+Endpoint : POST /voice/tools/follow-up-request
+
+Garanties :
+  Bearer F03 -> tenant context ; aucun tenant_id/customer_id/statut/key LLM
+  kind strict callback|quote ; téléphone F01 normalisé ; détails bornés
+  client connu rattaché par sous-requête (tenant_id, phone) dans l'INSERT
+  numéro connu uniquement dans un autre tenant -> customer_id NULL, sans fuite
+  clé DB (tenant, conversation, kind) + hash des champs normalisés
+  rejeu identique -> première ligne ; contenu différent -> 409
+  recorded=true uniquement après ligne PostgreSQL commise et résultat validé
+  réponse minimale ; erreurs 401/422/409/503 no-store sans données sensibles
+
+Review indépendante : PASS pré-wiring puis PASS final. Observation couverte par
+un test supplémentaire : deux contenus différents concurrents donnent
+exactement une création et un conflit. Le futur changement de statut devra
+contracter séparément le rejeu après completed/cancelled ; F08 ne crée que
+pending et n'expose aucune mutation de statut.
+
+Validation :
+  PostgreSQL 18.4 réel + go test -count=1 -race ./...
+  go vet ./... ; go build ./... ; git diff --check
+  smoke HTTP réel : 200 enregistré ; rejeu normalisé=même ID ; contenu
+  différent=409 recorded=false ; une seule ligne et customer_id tenant correct.
+
+Ownership : aucun fichier UI/CSS/planning modifié. La DI et le numéro de
+migration sont libérés après ce passage en REVIEW.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -616,8 +652,8 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | - | - | **RELEASED** par Agent B : wiring F02B terminé (`handlers.NewPlanning` + un argument `httpserver.New`). F08 peut prendre la zone. |
-| DB migration numbering | Agent A | F08 REVIEW | migration `00004_follow_up_request.sql` uniquement |
+| DI root | - | - | wiring F08 terminé ; prochain owner doit CLAIM avant édition |
+| DB migration numbering | - | - | migration F08 `00004_follow_up_request.sql` terminée ; prochain owner doit CLAIM |
 | `compose.yml` | - | - | F03 terminé ; prochain owner doit CLAIM avant édition |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
 | global layout/tokens | Agent B | F06 MERGED | global UI contract |

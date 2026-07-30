@@ -26,6 +26,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		handlers.NewAppointmentMutations(nil),
 		voice.NewCustomerLookup(nil, nil),
 		voice.NewAppointmentTools(nil, nil),
+		voice.NewFollowUpTool(nil, nil),
 	)
 }
 
