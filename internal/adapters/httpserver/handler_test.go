@@ -294,3 +294,75 @@ func TestSessionNextIsOnlyCarriedForReplayableRequests(t *testing.T) {
 		})
 	}
 }
+
+// The route inventory. A refactor of the router - splitting sub-routers, moving a
+// mount - can silently drop a route or, worse, move one out from behind the
+// session. This asserts the whole table in one place: what exists, and what an
+// anonymous caller gets from it.
+func TestRouteInventory(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+		want   int
+		why    string
+	}{
+		{http.MethodGet, "/healthz", http.StatusOK, "probes stay open"},
+		{http.MethodGet, "/readyz", http.StatusOK, "probes stay open"},
+		{http.MethodGet, "/", http.StatusOK, "public site"},
+		{http.MethodGet, "/tarifs", http.StatusOK, "public site"},
+		{http.MethodGet, "/login", http.StatusOK, "sign-in page is public by necessity"},
+		{http.MethodGet, "/robots.txt", http.StatusOK, "crawler directives"},
+		{http.MethodGet, "/sitemap.xml", http.StatusOK, "crawler directives"},
+		{http.MethodGet, "/static/css/app.css", http.StatusOK, "embedded assets"},
+
+		{http.MethodGet, "/app", http.StatusUnauthorized, "staff area"},
+		{http.MethodGet, "/app/today", http.StatusUnauthorized, "staff area"},
+		{http.MethodGet, "/app/planning", http.StatusUnauthorized, "staff area"},
+		{http.MethodGet, "/app/planning/day", http.StatusUnauthorized, "staff area"},
+		{http.MethodGet, "/app/calls", http.StatusUnauthorized, "staff area"},
+		{http.MethodGet, "/app/calls/anything", http.StatusUnauthorized, "staff area"},
+		{http.MethodPost, "/app/appointments", http.StatusUnauthorized, "staff area"},
+
+		{http.MethodGet, "/nowhere", http.StatusNotFound, "unknown paths stay unknown"},
+		{http.MethodGet, "/app-lookalike", http.StatusNotFound, "the /app prefix must not swallow neighbours"},
+	}
+
+	handler := newHealthTestHandler(readinessStub{})
+	for _, test := range tests {
+		t.Run(test.method+" "+test.path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(test.method, test.path, nil))
+			if response.Code != test.want {
+				t.Errorf("status = %d, want %d (%s)", response.Code, test.want, test.why)
+			}
+		})
+	}
+}
+
+// The machine boundaries answer on their own paths, and none of them is reachable
+// without its own credential. The statuses differ on purpose: a tool rejects a
+// missing bearer token, the webhook reports that it is not configured.
+func TestMachineRoutesAreMountedAndClosed(t *testing.T) {
+	handler := newHealthTestHandler(readinessStub{})
+
+	for path, want := range map[string]int{
+		"/voice/tools/customer-lookup":          http.StatusUnauthorized,
+		"/voice/tools/appointment-availability": http.StatusUnauthorized,
+		"/voice/tools/appointment-book":         http.StatusUnauthorized,
+		"/voice/tools/follow-up-request":        http.StatusUnauthorized,
+		"/webhooks/elevenlabs/post-call":        http.StatusServiceUnavailable,
+	} {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code == http.StatusNotFound {
+				t.Fatal("route is not mounted")
+			}
+			if response.Code != want {
+				t.Errorf("status = %d, want %d", response.Code, want)
+			}
+		})
+	}
+}
