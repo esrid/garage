@@ -13,7 +13,7 @@ import (
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/core/tenant"
 	"github.com/esrid/garage/internal/features/calls"
-	"github.com/esrid/garage/internal/features/customers"
+	"github.com/esrid/garage/internal/features/customerfiles"
 	"github.com/esrid/garage/internal/features/dashboard"
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
@@ -45,7 +45,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		Authentication:   identity.NewAuthentication(nil),
 		Dashboard:        dashboard.NewDashboard(nil),
 		Calls:            calls.NewCalls(nil),
-		Customers:        customers.NewHandler(nil),
+		Customers:        customerfiles.NewHandler(nil),
 		Settings:         settings.NewHandler(nil),
 		Usage:            usage.NewHandler(nil),
 		Planning:         planning.NewHandler(nil),

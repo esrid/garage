@@ -1,4 +1,4 @@
-package customers
+package customerfiles
 
 import (
 	"strings"

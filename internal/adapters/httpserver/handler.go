@@ -7,7 +7,7 @@ import (
 
 	"github.com/esrid/garage/assets"
 	"github.com/esrid/garage/internal/features/calls"
-	"github.com/esrid/garage/internal/features/customers"
+	"github.com/esrid/garage/internal/features/customerfiles"
 	"github.com/esrid/garage/internal/features/dashboard"
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
@@ -38,7 +38,7 @@ type Deps struct {
 	// Behind the staff session.
 	Dashboard    *dashboard.Dashboard
 	Calls        *calls.Calls
-	Customers    *customers.Handler
+	Customers    *customerfiles.Handler
 	Settings     *settings.Handler
 	Usage        *usage.Handler
 	Planning     *planning.Handler

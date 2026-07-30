@@ -28,5 +28,26 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
 
+  # Sauvegarde quotidienne (docs/BACKUPS.md). Sous un profil : elle ne démarre
+  # pas avec la pile, elle s'exécute à la demande ou depuis cron sur l'hôte :
+  #   docker compose run --rm backup
+  backup:
+    image: postgres:18.4-bookworm
+    profiles: ["backup"]
+    environment:
+      DATABASE_DSN: ${DATABASE_DSN:?set DATABASE_DSN}
+      BACKUP_DIR: /backups
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+    volumes:
+      - ./ops:/ops:ro
+      # À remplacer par un montage vers un stockage externe au VPS : une
+      # sauvegarde sur le disque de la base disparaît avec lui (PRD §12).
+      - garage-backups:/backups
+    entrypoint: ["sh", "/ops/backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres-data:
+  garage-backups:

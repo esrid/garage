@@ -15,7 +15,7 @@ import (
 	"github.com/esrid/garage/internal/core/conversation"
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/features/calls"
-	"github.com/esrid/garage/internal/features/customers"
+	"github.com/esrid/garage/internal/features/customerfiles"
 	"github.com/esrid/garage/internal/features/dashboard"
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
@@ -97,7 +97,7 @@ func a11yPages(t *testing.T) map[string]string {
 		"/mentions-legales":            renderMux(t, publicMux(), "/mentions-legales"),
 		"/login":                       renderMux(t, publicMux(), "/login?error=invalid&next=/app/planning"),
 		"/app/calls":                   render(t, calls.NewCalls(callsStub{}).Day, "/app/calls"),
-		"/app/customers":               render(t, customers.NewHandler(customersStub{}).Search, "/app/customers"),
+		"/app/customers":               render(t, customerfiles.NewHandler(customersStub{}).Search, "/app/customers"),
 		"/app/usage":                   render(t, usage.NewHandler(usageStub{}).Page, "/app/usage"),
 		"/app/calls/conv-1":            renderMux(t, callsMux(), "/app/calls/conv-1"),
 	}
