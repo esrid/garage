@@ -33,6 +33,10 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments
 	mux.HandleFunc("POST /voice/tools/appointment-availability", appointmentTools.Availability)
 	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
 
+	// The public site (F07) owns "/" and the legal pages. It has no dependencies,
+	// so it is built here instead of the DI root, which Agent A holds for F05.
+	handlers.NewSite().Register(mux)
+
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 
 	return requestID(recoverPanic(accessLog(securityHeaders(mux))))
