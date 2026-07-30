@@ -126,7 +126,10 @@ func (s *Site) robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	// Keeping crawlers out of the application and the voice tools is hygiene, not
 	// access control: those routes are also behind authentication.
-	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: /app/\nDisallow: /voice/\nSitemap: %s/sitemap.xml\n", origin(r))
+	//
+	// No trailing slash: Disallow matches on prefix, so "/app" covers /app itself
+	// and everything under it. "/app/" would have left the dashboard crawlable.
+	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /voice\nSitemap: %s/sitemap.xml\n", origin(r))
 }
 
 type sitemapURL struct {

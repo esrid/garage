@@ -127,8 +127,10 @@ func TestRobotsKeepsCrawlersOutOfTheApp(t *testing.T) {
 	body := response.Body.String()
 	for _, want := range []string{
 		"User-agent: *",
-		"Disallow: /app/",
-		"Disallow: /voice/",
+		// Without the trailing slash: "/app/" leaves the dashboard at /app itself
+		// open to crawlers, since Disallow matches a path prefix.
+		"Disallow: /app\n",
+		"Disallow: /voice\n",
 		"Sitemap: http://atelier.example/sitemap.xml",
 	} {
 		if !strings.Contains(body, want) {
