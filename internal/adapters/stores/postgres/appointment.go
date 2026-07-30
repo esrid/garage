@@ -43,6 +43,13 @@ func (s *Store) ConfigureOpening(ctx context.Context, input appointment.Configur
 		&value.ID, &value.Start, &value.End, &value.Capacity,
 	)
 	if err != nil {
+		// 23P01 is the exclusion constraint from migration 00006: this window
+		// overlaps one the workshop already has, and two overlapping openings make
+		// capacity ambiguous. A conflict, not a server fault.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23P01" && pgErr.ConstraintName == "workshop_openings_no_overlap" {
+			return appointment.Opening{}, &domain.AlreadyExistsError{Entity: "opening", Field: "range", Value: input.Start.Format(time.RFC3339)}
+		}
 		return appointment.Opening{}, fmt.Errorf("postgres: configure opening: %w", err)
 	}
 	return value, nil

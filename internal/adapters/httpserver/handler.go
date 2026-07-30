@@ -32,6 +32,7 @@ type Deps struct {
 	Calls        *handlers.Calls
 	Planning     *handlers.Planning
 	Appointments *handlers.AppointmentMutations
+	Openings     *handlers.OpeningMutations
 
 	// Authenticated by their own tenant-scoped bearer token or signature.
 	CustomerLookup   *voice.CustomerLookup
@@ -96,6 +97,7 @@ func mountApplication(mux *http.ServeMux, deps Deps) {
 	appMux.HandleFunc("GET /app/today", deps.Dashboard.Fragment)
 	appMux.HandleFunc("GET /app/planning", deps.Planning.Page)
 	appMux.HandleFunc("GET /app/planning/day", deps.Planning.Fragment)
+	appMux.HandleFunc("POST /app/openings", deps.Openings.Configure)
 	appMux.HandleFunc("POST /app/appointments", deps.Appointments.Book)
 	appMux.HandleFunc("POST /app/appointments/{id}/reschedule", deps.Appointments.Reschedule)
 	appMux.HandleFunc("POST /app/appointments/{id}/cancel", deps.Appointments.Cancel)

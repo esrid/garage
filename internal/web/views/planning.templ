@@ -101,6 +101,9 @@ templ PlanningDay(planning Planning) {
 	</div>
 }
 
+// planningOpenings lists the stored opening windows, and lets the workshop add
+// one. Without a stored opening the backend offers no slot at all, by contract,
+// so this form is what makes a fresh installation usable.
 templ planningOpenings(planning Planning) {
 	@panel("Ouverture", "panel-openings", len(planning.Openings), "plages") {
 		for _, opening := range planning.Openings {
@@ -114,6 +117,39 @@ templ planningOpenings(planning Planning) {
 			</li>
 		}
 	}
+	@openingForm(planning)
+}
+
+// openingForm posts to F02A's service through POST /app/openings. Native time
+// inputs: the browser already knows how to enter an hour, and a garage owner
+// should not have to type a timestamp.
+templ openingForm(planning Planning) {
+	<details class="panel opening-form">
+		<summary>Déclarer une ouverture</summary>
+		<form class="row-form" method="post" action="/app/openings">
+			<input type="hidden" name="day" value={ dayParam(planning.Day) }/>
+			<div class="field">
+				<label class="field-label" for="opening-start">Ouverture</label>
+				<input class="input" type="time" id="opening-start" name="starts_at" value="08:00" step="900" required/>
+			</div>
+			<div class="field">
+				<label class="field-label" for="opening-end">Fermeture</label>
+				<input class="input" type="time" id="opening-end" name="ends_at" value="17:00" step="900" required/>
+			</div>
+			<div class="field">
+				<label class="field-label" for="opening-capacity">Véhicules à la fois</label>
+				<input class="input input-narrow" type="number" id="opening-capacity" name="capacity" value="1" min="1" max="50" required/>
+			</div>
+			<button class="btn btn-secondary" type="submit">
+				Ajouter
+				<span class="visually-hidden">{ " une ouverture le " + frenchDate(planning.Day) }</span>
+			</button>
+		</form>
+		<p class="field-hint">
+			Une plage par période d'ouverture. Deux plages ne peuvent pas se
+			chevaucher : la capacité ne serait plus lisible.
+		</p>
+	</details>
 }
 
 templ planningSlots(planning Planning) {

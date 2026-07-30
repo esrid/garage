@@ -40,6 +40,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		Calls:            handlers.NewCalls(nil),
 		Planning:         handlers.NewPlanning(nil),
 		Appointments:     handlers.NewAppointmentMutations(nil),
+		Openings:         handlers.NewOpeningMutations(nil),
 		CustomerLookup:   voice.NewCustomerLookup(nil, nil),
 		AppointmentTools: voice.NewAppointmentTools(nil, nil),
 		FollowUpTool:     voice.NewFollowUpTool(nil, nil),

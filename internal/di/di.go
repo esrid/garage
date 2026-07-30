@@ -58,6 +58,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	calls := handlers.NewCalls(callHistoryProvider)
 	planning := handlers.NewPlanning(scheduling)
 	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
+	openingMutations := handlers.NewOpeningMutations(scheduling)
 	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
 	appointmentTools := voice.NewAppointmentTools(scheduling, voiceAuthenticator)
 	followUpTool := voice.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
@@ -82,6 +83,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 			Calls:            calls,
 			Planning:         planning,
 			Appointments:     appointmentMutations,
+			Openings:         openingMutations,
 			CustomerLookup:   customerLookup,
 			AppointmentTools: appointmentTools,
 			FollowUpTool:     followUpTool,

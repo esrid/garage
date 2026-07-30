@@ -661,3 +661,23 @@ a {
 .turn-text {
   max-width: var(--content-width);
 }
+
+/* The opening form is its own card next to the list it feeds, folded: declaring
+ * hours is a setup gesture, not something the desk does every day. */
+.opening-form {
+  align-self: start;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+
+  & summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+    color: var(--color-action);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+  }
+}
+
+.input-narrow {
+  max-width: 8rem;
+}
