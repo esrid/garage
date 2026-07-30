@@ -17,7 +17,7 @@
 | F02A | Mini-planning atelier — backend | Agent A | F00 | `internal/core/appointment/**`, store PostgreSQL, handlers/services scheduling, migrations associées | scheduling domain API; recheck avant booking; idempotence écriture | disponibilité + création/modification/annulation + tenant isolation | READY |
 | F02B | Mini-planning atelier — UI | Agent B | F02A | vues planning, fragments HTMX et styles locaux non globaux | consomme le contrat HTTP figé par F02A | rendu + progressive enhancement + a11y | READY |
 | F03 | Voice lookup customer tool | Agent A | F01 | `internal/adapters/voice/**` | webhook/tool schema | known + unknown phone | READY |
-| F04 | Dashboard Today | Agent B | F02 | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | CLAIMED |
+| F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | IN_PROGRESS — layout + tests faits ; vues dashboard à venir |
 | F05 | Voice book appointment | Agent A | F02,F03 | voice tool + booking adapter | `SchedulingProvider.Book` | recheck + idempotency | BLOCKED |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | REVIEW |
 
@@ -110,6 +110,7 @@ Current owner must be written here before edits.
 | Zone | Owner | Until | Reason |
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
+| `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
 | DI root | Agent A | F00 MERGED | wiring PostgreSQL |
 | DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
 | `compose.yml` | Agent A | F00 MERGED | service PostgreSQL 18 |

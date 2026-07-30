@@ -3,6 +3,7 @@ module github.com/esrid/garage
 go 1.26.5
 
 require (
+	github.com/a-h/templ v0.3.1020
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.3
 )
