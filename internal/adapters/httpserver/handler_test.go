@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/esrid/garage/internal/adapters/handlers"
+	"github.com/esrid/garage/internal/adapters/voice"
 )
 
 type readinessStub struct {
@@ -18,7 +19,7 @@ type readinessStub struct {
 func (s readinessStub) Check(context.Context) error { return s.err }
 
 func newHealthTestHandler(readiness readinessChecker) http.Handler {
-	return New(readiness, handlers.NewDashboard(nil), handlers.NewAppointmentMutations(nil))
+	return New(readiness, handlers.NewDashboard(nil), handlers.NewAppointmentMutations(nil), voice.NewCustomerLookup(nil, nil))
 }
 
 func TestHealthEndpoints(t *testing.T) {

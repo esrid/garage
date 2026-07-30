@@ -79,6 +79,23 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 			t.Errorf("POST %s status = %d, want %d", route.path, response.Code, http.StatusUnauthorized)
 		}
 	}
+
+	request = httptest.NewRequest(http.MethodPost, "/voice/tools/customer-lookup", strings.NewReader(`{"phone":"+596696123456"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Errorf("voice lookup status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestNewRejectsInvalidVoiceCredentialsBeforeOpeningDatabase(t *testing.T) {
+	cfg := testConfig("not-a-database-dsn")
+	cfg.VoiceToolTokens = "invalid"
+	_, err := New(context.Background(), cfg)
+	if err == nil || !strings.Contains(err.Error(), "voice credentials") {
+		t.Fatalf("New() error = %v, want voice credentials error", err)
+	}
 }
 
 func testConfig(dsn string) config.Config {

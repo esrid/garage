@@ -14,8 +14,10 @@ import (
 	"github.com/esrid/garage/internal/adapters/handlers"
 	"github.com/esrid/garage/internal/adapters/httpserver"
 	"github.com/esrid/garage/internal/adapters/stores/postgres"
+	"github.com/esrid/garage/internal/adapters/voice"
 	"github.com/esrid/garage/internal/config"
 	"github.com/esrid/garage/internal/core/appointment"
+	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/services"
 )
 
@@ -29,6 +31,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
+	voiceAuthenticator, err := voice.NewTokenAuthenticator(cfg.VoiceToolTokens)
+	if err != nil {
+		return nil, err
+	}
 
 	database, err := postgres.Open(ctx, cfg.DatabaseDSN)
 	if err != nil {
@@ -39,9 +45,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	scheduling := appointment.NewService(database, database, database)
 	dashboard := handlers.NewDashboard(handlers.NewAppointmentTodayProvider(scheduling))
 	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
+	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, appointmentMutations),
+		Handler:           httpserver.New(readiness, dashboard, appointmentMutations, customerLookup),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

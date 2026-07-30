@@ -4,6 +4,7 @@ services:
     environment:
       HTTP_ADDR: :8080
       DATABASE_DSN: ${DATABASE_DSN:?set DATABASE_DSN}
+      VOICE_TOOL_TOKENS: ${VOICE_TOOL_TOKENS:-}
     ports:
       - "8080:8080"
     depends_on:

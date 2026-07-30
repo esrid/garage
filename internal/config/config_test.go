@@ -34,12 +34,13 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv("DATABASE_DSN", "postgres://garage@db:5432/custom")
 	t.Setenv("HTTP_MAX_HEADER_BYTES", "32768")
 	t.Setenv("HTTP_READ_TIMEOUT", "3s")
+	t.Setenv("VOICE_TOOL_TOKENS", "tenant:secret")
 
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.HTTPAddr != "127.0.0.1:9090" || cfg.DatabaseDSN != "postgres://garage@db:5432/custom" || cfg.MaxHeaderBytes != 32768 || cfg.ReadTimeout != 3*time.Second {
+	if cfg.HTTPAddr != "127.0.0.1:9090" || cfg.DatabaseDSN != "postgres://garage@db:5432/custom" || cfg.VoiceToolTokens != "tenant:secret" || cfg.MaxHeaderBytes != 32768 || cfg.ReadTimeout != 3*time.Second {
 		t.Fatalf("Load() = %#v", cfg)
 	}
 }
@@ -90,6 +91,7 @@ func clearConfigEnvironment(t *testing.T) {
 		"HTTP_ADDR",
 		"DATABASE_DSN",
 		"DSN",
+		"VOICE_TOOL_TOKENS",
 		"HTTP_MAX_HEADER_BYTES",
 		"HTTP_READ_HEADER_TIMEOUT",
 		"HTTP_READ_TIMEOUT",

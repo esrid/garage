@@ -7,6 +7,7 @@ import (
 
 	"github.com/esrid/garage/assets"
 	"github.com/esrid/garage/internal/adapters/handlers"
+	"github.com/esrid/garage/internal/adapters/voice"
 )
 
 type readinessChecker interface {
@@ -17,7 +18,7 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments *handlers.AppointmentMutations) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
@@ -28,6 +29,7 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments
 	mux.HandleFunc("POST /app/appointments", appointments.Book)
 	mux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
 	mux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)
+	mux.Handle("POST /voice/tools/customer-lookup", customerLookup)
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 

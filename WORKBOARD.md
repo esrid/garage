@@ -16,7 +16,7 @@
 | F01 | Tenant + Customer + Vehicle | Agent A | F00 | `docs/contracts/F01-customer-vehicle.md`, `docs/DATABASE.md`, `internal/core/tenant/**`, `internal/core/customer/**`, `internal/core/vehicle/**`, `internal/adapters/stores/postgres/tenant*.go`, `internal/adapters/stores/postgres/customer*.go`, `internal/adapters/stores/postgres/vehicle*.go`, `internal/adapters/stores/postgres/migrations/00002_tenant_customer_vehicle.sql`, `cmd/main.go` (import stdlib `time/tzdata` uniquement) | `docs/contracts/F01-customer-vehicle.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte serveur | create/find by phone, tenant isolation | REVIEW |
 | F02A | Mini-planning atelier — backend | Agent A | F00,F01 | `docs/contracts/F02A-planning.md`, `docs/SCHEDULING.md`, `internal/core/appointment/**`, `internal/adapters/stores/postgres/appointment*.go`, `internal/adapters/stores/postgres/migrations/00003_appointment.sql`, `internal/adapters/handlers/appointment*.go`, `internal/adapters/httpserver/handler.go` (routing contracté uniquement), `internal/di/**` (wiring uniquement), suppression de `internal/adapters/handlers/dashboard_fixture.go` après adaptateur réel | `docs/contracts/F02A-planning.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte; recheck atomique; idempotence | disponibilité + créer/déplacer/annuler + tenant isolation + dashboard réel | REVIEW |
 | F02B | Mini-planning atelier — UI | Agent B | F02A | vues planning, fragments HTMX et styles locaux non globaux | consomme le contrat HTTP figé par F02A | rendu + progressive enhancement + a11y | READY |
-| F03 | Voice lookup customer tool | Agent A | F01 | `internal/adapters/voice/**` | webhook/tool schema | known + unknown phone | READY |
+| F03 | Voice lookup customer tool | Agent A | F01 | `docs/contracts/F03-voice-customer-lookup.md`, `docs/ELEVENLABS.md`, `internal/adapters/voice/**`, `internal/config/**` (variable credentials uniquement), `compose.yml` (une variable app), `internal/adapters/httpserver/handler.go` (une route), `internal/di/**` (wiring uniquement) | `docs/contracts/F03-voice-customer-lookup.md` (frozen 2026-07-30); secret → tenant context, jamais tenant_id LLM | known + unknown phone + auth/isolation + erreurs bornées | REVIEW |
 | F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | REVIEW — page servie sur `GET /app`, fragment `GET /app/today`, 11 tests, vérifiée en navigateur à 380 et 1280 px |
 | F05 | Voice book appointment | Agent A | F02,F03 | voice tool + booking adapter | `SchedulingProvider.Book` | recheck + idempotency | BLOCKED |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
@@ -332,6 +332,40 @@ dans la coordination juste au-dessus ; ne jamais parser DateOnly en UTC puis
 l'utiliser directement comme jour civil Martinique.
 ```
 
+## Open handoff — Agent A to Agent B, F03 review, 2026-07-30
+
+```
+Feature: F03 Voice lookup customer tool
+From: Agent A (backend)
+To: Agent B (reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Contrat gelé avant code : docs/contracts/F03-voice-customer-lookup.md
+Documentation officielle vérifiée : docs/ELEVENLABS.md
+
+Implémentation :
+  POST /voice/tools/customer-lookup
+  Authorization Bearer secret par tenant -> tenant context serveur
+  JSON strict/borné : phone uniquement, aucun tenant_id accepté
+  connu -> id opaque + prénom seulement ; inconnu -> 200 found=false
+  401/422/503 génériques, no-store, aucun secret/SQL/tenant exposé
+  VOICE_TOOL_TOKENS optionnel, transmis par Compose
+
+Review indépendante : un finding faible corrigé (UUID tenant canonicalisé avant
+détection de doublon de token), puis re-review PASS. Défense supplémentaire :
+un store qui renverrait un Customer d'un autre tenant produit 503 sans donnée.
+
+Tests/validation :
+  TEST_DATABASE_DSN=PostgreSQL-18.4 go test -count=1 -race ./...
+  go vet ./... ; go build ./... ; git diff --check
+  docker compose config --quiet avec les variables explicites
+  smoke HTTP réel : connu=200 minimal, inconnu=200 found=false, mauvais token=401
+
+Contrainte de déploiement : un agent/tool ElevenLabs par garage reçoit uniquement
+le secret de ce garage. Une architecture d'agent partagé exigera une mini-tâche
+et une secret dynamic variable, jamais tenant_id ou token dans le prompt LLM.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -339,9 +373,9 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | - | - | wiring F02A terminé ; prochain owner doit CLAIM avant édition |
+| DI root | - | - | wiring F03 terminé ; prochain owner doit CLAIM avant édition |
 | DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
-| `compose.yml` | Agent A | F00 MERGED | service PostgreSQL 18 |
+| `compose.yml` | - | - | F03 terminé ; prochain owner doit CLAIM avant édition |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
 | global layout/tokens | Agent B | F06 MERGED | global UI contract |
 | provider interfaces | - | - | `SchedulingProvider` F02A gelé ; mini-tâche obligatoire avant changement |

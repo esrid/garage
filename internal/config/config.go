@@ -21,6 +21,7 @@ const (
 type Config struct {
 	HTTPAddr          string
 	DatabaseDSN       string
+	VoiceToolTokens   string
 	MaxHeaderBytes    int
 	ReadHeaderTimeout time.Duration
 	ReadTimeout       time.Duration
@@ -33,6 +34,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		HTTPAddr:          envOrDefault("HTTP_ADDR", defaultHTTPAddr),
 		DatabaseDSN:       envOrDefault("DATABASE_DSN", os.Getenv("DSN")),
+		VoiceToolTokens:   os.Getenv("VOICE_TOOL_TOKENS"),
 		MaxHeaderBytes:    defaultMaxHeaderBytes,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		ReadTimeout:       defaultReadTimeout,
