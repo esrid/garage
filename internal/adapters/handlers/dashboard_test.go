@@ -224,19 +224,3 @@ func TestRowsFallBackToThePhoneNumber(t *testing.T) {
 		t.Error("the task phone number is rendered twice")
 	}
 }
-
-func TestFixtureSatisfiesTheContract(t *testing.T) {
-	data, err := FixtureToday{}.Today(context.Background(), testDay)
-	if err != nil {
-		t.Fatalf("fixture error = %v", err)
-	}
-	if len(data.Calls) == 0 || len(data.Appointments) == 0 || len(data.Tasks) == 0 {
-		t.Fatal("the fixture should populate all three panels")
-	}
-	// Times must follow the requested day, not a clock of their own.
-	for _, call := range data.Calls {
-		if call.At.Year() != testDay.Year() || call.At.Day() != testDay.Day() {
-			t.Errorf("fixture call at %v is not on the requested day %v", call.At, testDay)
-		}
-	}
-}

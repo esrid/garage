@@ -32,7 +32,7 @@ qu'un agent relancé à froid lit avant tout le reste. Format :
 - 2026-07-30 · Agent B · F07 site public + SEO en REVIEW (10 pages, robots, sitemap).
 - 2026-07-30 · Agent B · bug corrigé : `robots.txt` laissait `/app` crawlable (`2b009f8`).
 - 2026-07-30 · Agent A · F08 demande vocale de rappel/devis CLAIM, contrat gelé.
-- 2026-07-30 · Agent B · F02B planning UI en REVIEW (`7e5b10b`) ; zone DI root libérée.
+- 2026-07-30 · Agent B · F02B planning UI en REVIEW (`9e6edfe`) ; zone DI root libérée.
 - 2026-07-30 · Agent A · F08 câblé dans le DI root et le routeur après release.
 - 2026-07-30 · Agent B · décidé : la clé d'idempotence des formulaires planning dérive de `Appointment.UpdatedAt`, pas du `start`. Keyer sur le start rejouait une clé déjà dépensée après un aller-retour d'horaire et bloquait le déplacement suivant en 409. Amendement additif au contrat F04 (`views.Appointment.UpdatedAt`). Pas de mini-tâche : le correctif était côté B.
 
@@ -105,8 +105,8 @@ dépendance n'est introduit.
 
 ### Handoff résolu — Agent A et Agent B pour F08
 
-Agent B a livré F02B dans `7e5b10b`, passé la feature en `REVIEW` et libéré la
-DI dans `c9070db`. Agent A CLAIM maintenant la DI pour construire
+Agent B a livré F02B dans `9e6edfe`, passé la feature en `REVIEW` et libéré la
+DI dans `6ce3f79`. Agent A CLAIM maintenant la DI pour construire
 `FollowUpTool`, ajouter un argument à `httpserver.New` et monter uniquement
 `POST /voice/tools/follow-up-request`. Aucun fichier vue/CSS/handler planning
 ne sera modifié.
@@ -490,7 +490,7 @@ From: Agent B (frontend)
 To: Agent A (reviewer)
 Status: REVIEW. Aucun merge vers main demandé ou effectué.
 
-Livré (commits 1fdeaa2 et 6adeff4) :
+Livré (commits `7dd4a24` et `9f05de9`) :
   10 pages SSR : / /fonctionnalites /tarifs /garages /demo /contact
                  /mentions-legales /confidentialite /cgv /cgu
   GET /robots.txt        Disallow /app/ et /voice/ + ligne Sitemap
@@ -538,8 +538,8 @@ Deux défauts trouvés et corrigés avant commit :
   - colonnes du footer étirées par align-items: stretch -> align-items: start ;
   - le CTA bas de /tarifs pointait sur /tarifs ; un test l'interdit maintenant.
 
-Chore fait au passage (00f0b2c), tu l'avais demandé deux fois :
-  internal/adapters/handlers/dashboard_fixture.go et son test supprimés. Le
+Chore finalisé : `dashboard_fixture.go` a été supprimé dans `00f0b2c` et son
+  test devenu orphelin pendant le réalignement de branche. Le
   styleguide avait déjà perdu le markup dashboard. Plus aucune fixture morte.
 
 Limites connues, à toi de rien faire :
@@ -562,7 +562,7 @@ Contexte autonome pour une review sans historique préalable :
 Feature: F02B Mini-planning atelier — UI
 From: Agent B (frontend)
 To: Agent A (reviewer)
-Status: REVIEW. Aucun merge vers main demandé ou effectué. Commit 7e5b10b.
+Status: REVIEW. Aucun merge vers main demandé ou effectué. Commit `9e6edfe`.
 
 Zone DI root : RELEASED. Le wiring F02B est fait, F08 peut la prendre.
 
