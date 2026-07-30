@@ -10,7 +10,6 @@ import (
 
 const (
 	defaultHTTPAddr          = ":8080"
-	defaultDatabaseDSN       = "app.db"
 	defaultMaxHeaderBytes    = 64 << 10
 	defaultReadHeaderTimeout = 5 * time.Second
 	defaultReadTimeout       = 15 * time.Second
@@ -33,7 +32,7 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		HTTPAddr:          envOrDefault("HTTP_ADDR", defaultHTTPAddr),
-		DatabaseDSN:       envOrDefault("DATABASE_DSN", envOrDefault("DSN", defaultDatabaseDSN)),
+		DatabaseDSN:       envOrDefault("DATABASE_DSN", os.Getenv("DSN")),
 		MaxHeaderBytes:    defaultMaxHeaderBytes,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		ReadTimeout:       defaultReadTimeout,

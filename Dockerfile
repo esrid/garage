@@ -11,13 +11,10 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o app ./cmd
 
 FROM alpine:3.22
 
-RUN addgroup -S app && adduser -S -G app app && \
-    mkdir -p /data && chown app:app /data && chmod 0700 /data
+RUN addgroup -S app && adduser -S -G app app
 COPY --from=builder --chown=app:app /build/app /app
 
 ENV HTTP_ADDR=:8080
-ENV DATABASE_DSN=/data/app.db
-VOLUME /data
 EXPOSE 8080
 USER app
 

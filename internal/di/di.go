@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/esrid/garage/internal/adapters/httpserver"
-	"github.com/esrid/garage/internal/adapters/stores/sqlite"
+	"github.com/esrid/garage/internal/adapters/stores/postgres"
 	"github.com/esrid/garage/internal/config"
 	"github.com/esrid/garage/internal/core/services"
 )
@@ -28,9 +28,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Persistence selection belongs in this composition root. To move to
-	// PostgreSQL, wire a PostgreSQL adapter that satisfies the same core ports.
-	database, err := sqlite.Open(ctx, cfg.DatabaseDSN)
+	database, err := postgres.Open(ctx, cfg.DatabaseDSN)
 	if err != nil {
 		return nil, err
 	}

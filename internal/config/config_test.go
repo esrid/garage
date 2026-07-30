@@ -8,6 +8,7 @@ import (
 
 func TestLoadDefaults(t *testing.T) {
 	clearConfigEnvironment(t)
+	t.Setenv("DATABASE_DSN", "postgres://garage@localhost:5432/garage?sslmode=disable")
 
 	cfg, err := Load()
 	if err != nil {
@@ -16,8 +17,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.HTTPAddr != ":8080" {
 		t.Fatalf("HTTPAddr = %q, want :8080", cfg.HTTPAddr)
 	}
-	if cfg.DatabaseDSN != "app.db" {
-		t.Fatalf("DatabaseDSN = %q, want app.db", cfg.DatabaseDSN)
+	if cfg.DatabaseDSN != "postgres://garage@localhost:5432/garage?sslmode=disable" {
+		t.Fatalf("DatabaseDSN = %q", cfg.DatabaseDSN)
 	}
 	if cfg.MaxHeaderBytes != 64<<10 {
 		t.Fatalf("MaxHeaderBytes = %d, want %d", cfg.MaxHeaderBytes, 64<<10)
@@ -30,7 +31,7 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadOverrides(t *testing.T) {
 	clearConfigEnvironment(t)
 	t.Setenv("HTTP_ADDR", "127.0.0.1:9090")
-	t.Setenv("DATABASE_DSN", "custom.db")
+	t.Setenv("DATABASE_DSN", "postgres://garage@db:5432/custom")
 	t.Setenv("HTTP_MAX_HEADER_BYTES", "32768")
 	t.Setenv("HTTP_READ_TIMEOUT", "3s")
 
@@ -38,14 +39,23 @@ func TestLoadOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.HTTPAddr != "127.0.0.1:9090" || cfg.DatabaseDSN != "custom.db" || cfg.MaxHeaderBytes != 32768 || cfg.ReadTimeout != 3*time.Second {
+	if cfg.HTTPAddr != "127.0.0.1:9090" || cfg.DatabaseDSN != "postgres://garage@db:5432/custom" || cfg.MaxHeaderBytes != 32768 || cfg.ReadTimeout != 3*time.Second {
 		t.Fatalf("Load() = %#v", cfg)
 	}
 }
 
 func TestLoadRejectsInvalidValues(t *testing.T) {
+	t.Run("missing database DSN", func(t *testing.T) {
+		clearConfigEnvironment(t)
+		_, err := Load()
+		if err == nil || !strings.Contains(err.Error(), "DATABASE_DSN") {
+			t.Fatalf("Load() error = %v, want DATABASE_DSN error", err)
+		}
+	})
+
 	t.Run("address", func(t *testing.T) {
 		clearConfigEnvironment(t)
+		t.Setenv("DATABASE_DSN", "postgres://garage@localhost:5432/garage")
 		t.Setenv("HTTP_ADDR", "missing-port")
 		_, err := Load()
 		if err == nil || !strings.Contains(err.Error(), "HTTP_ADDR") {
@@ -55,6 +65,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 
 	t.Run("duration", func(t *testing.T) {
 		clearConfigEnvironment(t)
+		t.Setenv("DATABASE_DSN", "postgres://garage@localhost:5432/garage")
 		t.Setenv("SHUTDOWN_TIMEOUT", "later")
 		_, err := Load()
 		if err == nil || !strings.Contains(err.Error(), "SHUTDOWN_TIMEOUT") {
@@ -64,6 +75,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 
 	t.Run("header bytes", func(t *testing.T) {
 		clearConfigEnvironment(t)
+		t.Setenv("DATABASE_DSN", "postgres://garage@localhost:5432/garage")
 		t.Setenv("HTTP_MAX_HEADER_BYTES", "many")
 		_, err := Load()
 		if err == nil || !strings.Contains(err.Error(), "HTTP_MAX_HEADER_BYTES") {
