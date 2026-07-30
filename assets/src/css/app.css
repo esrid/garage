@@ -1,0 +1,476 @@
+/*
+ * Application stylesheet: minimal reset, element defaults, and the base
+ * components the garage UI actually uses today.
+ *
+ * Every design value comes from tokens.css. No colour, font or radius is
+ * hardcoded here — a value that needs to be themed belongs in tokens.css.
+ * No brand palette has been chosen yet, so the neutral accent from the template
+ * is kept as-is. [À VALIDER] with the founder before the first client demo.
+ *
+ * Uses native CSS nesting (Baseline 2023). `&` is written explicitly for
+ * compound selectors and pseudo-classes, where it is required.
+ */
+
+@import "./tokens.css";
+
+/* ---------------------------------------------------------------- reset ---
+ * tokens.css deliberately ships no reset. This is the smallest one that
+ * prevents real bugs: box-sizing surprises, media overflow, and form controls
+ * refusing to inherit the page font.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* ------------------------------------------------------------- elements --- */
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  /* Almost every string on screen is tenant data: customer names, service
+   * labels, transcript snippets. A long unbreakable one (
+   * "remplacement_courroie_distribution_et_pompe_a_eau") otherwise pushes its
+   * container wider than the viewport. `anywhere` rather than `break-word`:
+   * only `anywhere` also shrinks min-content, which is what a grid or flex
+   * track uses to size itself. Guarding here covers every component instead of
+   * per-component patches. */
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: var(--line-height-tight);
+  /* Enhancement only: ignored by older browsers (Baseline 2024). */
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+}
+
+h2 {
+  font-size: var(--font-size-xl);
+}
+
+h3 {
+  font-size: var(--font-size-base);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--color-action);
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.15em;
+
+  &:hover {
+    color: var(--color-action-hover);
+  }
+}
+
+/* One focus style for the whole app. Never remove it: keyboard users lose the
+ * page otherwise. */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ------------------------------------------------------ accessibility --- */
+
+/* Hidden visually, still announced by screen readers. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* First focusable element of the page: lets keyboard users jump the nav. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-on-action);
+  background: var(--color-action);
+  border-radius: var(--radius-md);
+  transform: translateY(-200%);
+
+  &:focus {
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------------------- app shell --- */
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-brand {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding-inline: var(--space-3);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+
+  &:hover {
+    color: var(--color-text);
+    background: var(--color-surface-subtle);
+  }
+}
+
+/* aria-current="page" is the source of truth for the active link: the styling
+ * follows the accessible state instead of a separate CSS class. */
+.app-nav-link[aria-current="page"] {
+  color: var(--color-text);
+  background: var(--color-surface-subtle);
+  font-weight: var(--font-weight-medium);
+}
+
+.app-main {
+  max-width: var(--container-width);
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4) var(--space-16);
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-block-end: var(--space-6);
+}
+
+.page-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ------------------------------------------------------------- panel --- */
+
+/* Column layout: panels stack on phones, share the row when there is space.
+ * auto-fit + minmax handles every viewport without a media query. */
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-count {
+  margin-inline-start: auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-body {
+  padding: var(--space-2);
+}
+
+/* --------------------------------------------------------------- item --- */
+
+/* One row component for calls, appointments and tasks. The three panels differ
+ * in content, not in shape, so they share this instead of three lookalikes. */
+.item-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+
+  & + & {
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+  }
+}
+
+.item-time {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  /* Times line up column-wise instead of jittering per glyph width. */
+  font-variant-numeric: tabular-nums;
+}
+
+.item-title {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Secondary line: spans the full width under the title. */
+.item-detail {
+  grid-column: 2 / -1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Plates are identifiers: monospace makes O/0 and I/1 distinguishable. */
+.item-plate {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------------------- badge --- */
+
+/* Tones, not domain vocabulary. The view maps a status to a tone, so adding a
+ * status upstream never requires a CSS change. */
+.badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.badge-success {
+  color: var(--color-success-text);
+  background: var(--color-success-surface);
+}
+
+.badge-warning {
+  color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+}
+
+.badge-danger {
+  color: var(--color-danger-text);
+  background: var(--color-danger-surface);
+}
+
+.badge-info {
+  color: var(--color-info-text);
+  background: var(--color-info-surface);
+}
+
+/* ------------------------------------------------------------- button --- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height-md);
+  padding-inline: var(--space-4);
+  color: var(--color-on-action);
+  background: var(--color-action);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-action-hover);
+  }
+
+  &:active {
+    background: var(--color-action-active);
+  }
+
+  /* A filled accent background read as "enabled" and put white text at ~4:1.
+   * A recessed surface reads as unavailable and keeps the label legible.
+   * Disabled controls are exempt from WCAG 1.4.3, so the muted tone is
+   * deliberate, not an oversight. */
+  &:disabled {
+    color: var(--color-text-disabled);
+    background: var(--color-surface-subtle);
+    border-color: var(--color-border);
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+
+  &:hover {
+    background: var(--color-surface-subtle);
+  }
+
+  &:active {
+    background: var(--color-surface-subtle);
+  }
+}
+
+/* Small inline action, e.g. the panel refresh control. */
+.btn-quiet {
+  min-height: var(--control-height-sm);
+  padding-inline: var(--space-2);
+  color: var(--color-text-muted);
+  background: transparent;
+  border-color: transparent;
+  font-size: var(--font-size-sm);
+
+  &:hover {
+    color: var(--color-text);
+    background: var(--color-surface-subtle);
+  }
+}
+
+/* --------------------------------------------------------- empty state --- */
+
+.empty {
+  padding: var(--space-6) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* --------------------------------------------------------------- form --- */
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  margin-block-end: var(--space-4);
+}
+
+.field-label {
+  font-weight: var(--font-weight-medium);
+}
+
+/* Hint is referenced by aria-describedby, so it must stay adjacent to the
+ * control in the DOM order the label describes. */
+.field-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.input,
+.select,
+.textarea {
+  min-height: var(--control-height-md);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+
+  &::placeholder {
+    color: var(--color-text-disabled);
+  }
+}
+
+.textarea {
+  min-height: calc(var(--control-height-md) * 2);
+  resize: vertical;
+}
+
+/* aria-invalid is what assistive tech reads; the colour follows it rather than
+ * a separate error class that could disagree with it. */
+.input[aria-invalid="true"],
+.select[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+/* Errors are never colour-only: the view also prefixes a text marker. */
+.field-error {
+  color: var(--color-danger-text);
+  font-size: var(--font-size-sm);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* --------------------------------------------------------------- htmx --- */
+
+/* Progressive enhancement only: htmx adds .htmx-request during a request. If
+ * htmx never loads, nothing here applies and the plain links/forms still work.
+ */
+.htmx-request.panel,
+.htmx-request .panel-body {
+  opacity: 0.6;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}

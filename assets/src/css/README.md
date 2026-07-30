@@ -1,5 +1,20 @@
 # CSS tokens
 
+## Files
+
+| File | Role |
+| --- | --- |
+| `tokens.css` | design tokens only. No selectors beyond `:root`. |
+| `app.css` | reset, element defaults, base components. `@import`s `tokens.css`. |
+| `styleguide.html` | visual reference. Open directly in a browser, no server needed. |
+
+A page links **`app.css` only** — it pulls in `tokens.css` itself.
+
+> **When wiring the Go static handler:** embed the whole CSS directory, not
+> `app.css` alone. `app.css` requests `tokens.css` as a sibling URL, so a
+> single-file `embed` returns 404 for it and the page renders completely
+> unstyled with no error anywhere. `//go:embed assets/src/css` is the safe form.
+
 `tokens.css` is the framework-independent visual foundation. Import it before
 page or component styles:
 

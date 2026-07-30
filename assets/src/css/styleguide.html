@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Styleguide — composants de base</title>
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <!--
+      Visual reference for app.css. Open it directly in a browser: no server, no
+      build step. Demo content only — the real markup lives in the templ views,
+      which reuse these exact classes.
+    -->
+    <a class="skip-link" href="#main">Aller au contenu</a>
+
+    <header class="app-header">
+      <a class="app-brand" href="/app">Atelier IA</a>
+      <nav class="app-nav" aria-label="Navigation principale">
+        <a class="app-nav-link" href="/app" aria-current="page">Aujourd'hui</a>
+        <a class="app-nav-link" href="/app/planning">Planning</a>
+        <a class="app-nav-link" href="/app/clients">Clients</a>
+      </nav>
+    </header>
+
+    <main class="app-main" id="main">
+      <div class="page-header">
+        <h1>Styleguide</h1>
+        <p class="page-subtitle">Composants de base — jeu de données de démonstration</p>
+      </div>
+
+      <!-- Dashboard panels: the shape F04 renders. -->
+      <div class="panel-grid">
+        <section class="panel" aria-labelledby="panel-calls">
+          <div class="panel-header">
+            <h2 class="panel-title" id="panel-calls">Appels</h2>
+            <span class="panel-count">3<span class="visually-hidden"> appels</span></span>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              <li class="item">
+                <time class="item-time" datetime="2026-07-30T08:12">08:12</time>
+                <span class="item-title">Marie Lubin</span>
+                <span class="badge badge-success">RDV pris</span>
+                <span class="item-detail">Vidange + révision — 4 min 20 s</span>
+              </li>
+              <li class="item">
+                <time class="item-time" datetime="2026-07-30T09:03">09:03</time>
+                <span class="item-title">Numéro inconnu</span>
+                <span class="badge badge-info">Rappel</span>
+                <span class="item-detail">Devis embrayage — 2 min 05 s</span>
+              </li>
+              <li class="item">
+                <time class="item-time" datetime="2026-07-30T10:41">10:41</time>
+                <span class="item-title">Jean-Claude Sainte-Rose</span>
+                <span class="badge badge-warning">Transféré</span>
+                <span class="item-detail">Demande hors périmètre — 1 min 12 s</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="panel-rdv">
+          <div class="panel-header">
+            <h2 class="panel-title" id="panel-rdv">Rendez-vous</h2>
+            <span class="panel-count">2<span class="visually-hidden"> rendez-vous</span></span>
+          </div>
+          <div class="panel-body">
+            <ul class="item-list">
+              <li class="item">
+                <time class="item-time" datetime="2026-07-30T09:30">09:30</time>
+                <span class="item-title">Marie Lubin</span>
+                <span class="badge badge-success">Confirmé</span>
+                <span class="item-detail">
+                  Clio IV · <span class="item-plate">ab-123-cd</span> · Vidange
+                </span>
+              </li>
+              <li class="item">
+                <time class="item-time" datetime="2026-07-30T14:00">14:00</time>
+                <span class="item-title">Garage Morne-Rouge</span>
+                <span class="badge">En attente</span>
+                <span class="item-detail">Hilux · — · Diagnostic freinage</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="panel-tasks">
+          <div class="panel-header">
+            <h2 class="panel-title" id="panel-tasks">À traiter</h2>
+            <span class="panel-count">0<span class="visually-hidden"> demandes</span></span>
+          </div>
+          <div class="panel-body">
+            <p class="empty">Aucune demande à traiter aujourd'hui.</p>
+          </div>
+        </section>
+      </div>
+
+      <h2 style="margin-block: var(--space-10) var(--space-4)">Badges</h2>
+      <p style="display: flex; flex-wrap: wrap; gap: var(--space-2)">
+        <span class="badge">Neutre</span>
+        <span class="badge badge-success">Succès</span>
+        <span class="badge badge-warning">Attention</span>
+        <span class="badge badge-danger">Annulé</span>
+        <span class="badge badge-info">Info</span>
+      </p>
+
+      <h2 style="margin-block: var(--space-10) var(--space-4)">Boutons</h2>
+      <p style="display: flex; flex-wrap: wrap; gap: var(--space-2)">
+        <button class="btn" type="button">Action principale</button>
+        <button class="btn btn-secondary" type="button">Action secondaire</button>
+        <button class="btn btn-quiet" type="button">Rafraîchir</button>
+        <button class="btn" type="button" disabled>Indisponible</button>
+      </p>
+
+      <h2 style="margin-block: var(--space-10) var(--space-4)">Formulaire</h2>
+      <form style="max-width: var(--content-width)">
+        <div class="field">
+          <label class="field-label" for="plate">Plaque d'immatriculation</label>
+          <input
+            class="input"
+            id="plate"
+            name="plate"
+            type="text"
+            autocomplete="off"
+            aria-describedby="plate-hint"
+            placeholder="AB-123-CD"
+          />
+          <p class="field-hint" id="plate-hint">Confirmée oralement, jamais devinée.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="service">Prestation</label>
+          <select class="select" id="service" name="service">
+            <option>Vidange</option>
+            <option>Révision</option>
+            <option>Diagnostic</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="phone">Téléphone</label>
+          <input
+            class="input"
+            id="phone"
+            name="phone"
+            type="tel"
+            autocomplete="tel"
+            aria-invalid="true"
+            aria-describedby="phone-error"
+            value="06 12"
+          />
+          <p class="field-error" id="phone-error">Erreur : numéro incomplet.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="note">Note</label>
+          <textarea class="textarea" id="note" name="note" rows="3"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" type="submit">Enregistrer</button>
+          <button class="btn btn-secondary" type="reset">Annuler</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
