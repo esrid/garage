@@ -29,11 +29,12 @@ func (p *AppointmentTodayProvider) Today(ctx context.Context, day time.Time) (vi
 		Appointments: make([]views.Appointment, 0, len(planningDay.Appointments)),
 		Tasks:        make([]views.Task, 0),
 	}
+	location := planningDay.Date.Location()
 	for _, entry := range planningDay.Appointments {
 		result.Appointments = append(result.Appointments, views.Appointment{
 			ID:           entry.ID,
-			Start:        entry.Start,
-			End:          entry.End,
+			Start:        entry.Start.In(location),
+			End:          entry.End.In(location),
 			CustomerName: entry.CustomerName,
 			Vehicle:      entry.VehicleLabel,
 			Plate:        entry.Plate,
