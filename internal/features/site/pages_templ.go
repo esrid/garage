@@ -685,7 +685,7 @@ func SitePricing() templ.Component {
 				"Appels répondus et qualifiés.",
 				"Fiches client et véhicule.",
 				"Rendez-vous créés, déplacés, annulés.",
-				"Transfert vers un humain.",
+				"Transfert vers un humain, vers le numéro que vous choisissez.",
 				"Transcript, résumé et dashboard du jour.",
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {

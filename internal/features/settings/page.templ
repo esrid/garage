@@ -1,0 +1,67 @@
+package settings
+
+import "strconv"
+import "github.com/esrid/garage/internal/web/views"
+
+// SettingsPage is GET /app/settings.
+templ SettingsPage(view View) {
+	@views.Layout("Réglages — Atelier IA", "/app/settings") {
+		<div class="page-header">
+			<h1>Réglages</h1>
+			<p class="page-subtitle">{ view.Settings.Name }</p>
+		</div>
+		if view.Saved {
+			<p class="notice" role="status">Réglages enregistrés.</p>
+		}
+		if view.Notice != "" {
+			<p class="notice notice-alert" role="alert">{ view.Notice }</p>
+		}
+		if !view.Degraded {
+			<form class="login-form" method="post" action="/app/settings">
+				<div class="field">
+					<label class="field-label" for="transfer-phone">Transfert vers un humain</label>
+					<input
+						class="input"
+						type="tel"
+						id="transfer-phone"
+						name="transfer_phone"
+						value={ view.Settings.TransferPhone }
+						placeholder="+596696000000"
+						aria-describedby="transfer-hint"
+					/>
+					<p class="field-hint" id="transfer-hint">
+						Format international. C'est le numéro que l'assistant appelle
+						quand il passe la main. Reportez-le dans la configuration de
+						l'agent vocal : c'est lui qui déclenche le transfert pendant
+						l'appel, pas cette application.
+					</p>
+				</div>
+				<div class="field">
+					<label class="field-label" for="minutes-quota">Minutes de voix incluses par mois</label>
+					<input
+						class="input input-narrow"
+						type="number"
+						id="minutes-quota"
+						name="monthly_minutes_quota"
+						value={ strconv.Itoa(view.Settings.MonthlyMinutesQuota) }
+						min="1"
+						max="100000"
+						required
+						aria-describedby="quota-hint"
+					/>
+					<p class="field-hint" id="quota-hint">
+						Sert aux alertes à 70, 85 et 100 % sur la page Consommation.
+					</p>
+				</div>
+				<div class="form-actions">
+					<button class="btn" type="submit">Enregistrer</button>
+				</div>
+			</form>
+			<p class="site-note">
+				{ "Fuseau horaire de l'atelier : " + view.Settings.Timezone + "." }
+				Le changer réinterpréterait tous les horaires déjà enregistrés, c'est
+				une décision d'onboarding.
+			</p>
+		}
+	}
+}

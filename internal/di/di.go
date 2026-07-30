@@ -21,6 +21,7 @@ import (
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
+	"github.com/esrid/garage/internal/core/tenant"
 	"github.com/esrid/garage/internal/core/vehicle"
 	"github.com/esrid/garage/internal/features/calls"
 	"github.com/esrid/garage/internal/features/customers"
@@ -28,6 +29,7 @@ import (
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
 	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/settings"
 	"github.com/esrid/garage/internal/features/usage"
 	"github.com/esrid/garage/internal/features/voicetools"
 )
@@ -65,6 +67,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	dashboardHandler := dashboard.NewDashboard(dashboardProvider)
 	callsHandler := calls.NewCalls(callHistoryProvider)
 	customersHandler := customers.NewHandler(customer.NewReadService(database))
+	settingsHandler := settings.NewHandler(tenant.NewService(database))
 	usageHandler := usage.NewHandler(conversation.NewUsageService(database))
 	planningHandler := planning.NewHandler(scheduling)
 	appointmentMutations := planning.NewAppointmentMutations(scheduling)
@@ -94,6 +97,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 			Dashboard:        dashboardHandler,
 			Calls:            callsHandler,
 			Customers:        customersHandler,
+			Settings:         settingsHandler,
 			Usage:            usageHandler,
 			Planning:         planningHandler,
 			Appointments:     appointmentMutations,

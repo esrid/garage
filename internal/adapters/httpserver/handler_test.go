@@ -18,6 +18,7 @@ import (
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
 	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/settings"
 	"github.com/esrid/garage/internal/features/usage"
 	"github.com/esrid/garage/internal/features/voicetools"
 )
@@ -45,6 +46,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		Dashboard:        dashboard.NewDashboard(nil),
 		Calls:            calls.NewCalls(nil),
 		Customers:        customers.NewHandler(nil),
+		Settings:         settings.NewHandler(nil),
 		Usage:            usage.NewHandler(nil),
 		Planning:         planning.NewHandler(nil),
 		Appointments:     planning.NewAppointmentMutations(nil),

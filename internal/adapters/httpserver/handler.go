@@ -12,6 +12,7 @@ import (
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
 	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/settings"
 	"github.com/esrid/garage/internal/features/site"
 	"github.com/esrid/garage/internal/features/usage"
 	"github.com/esrid/garage/internal/features/voicetools"
@@ -38,6 +39,7 @@ type Deps struct {
 	Dashboard    *dashboard.Dashboard
 	Calls        *calls.Calls
 	Customers    *customers.Handler
+	Settings     *settings.Handler
 	Usage        *usage.Handler
 	Planning     *planning.Handler
 	Appointments *planning.AppointmentMutations
@@ -102,6 +104,7 @@ func mountApplication(mux *http.ServeMux, deps Deps) {
 	deps.Planning.Register(appMux)
 	deps.Calls.Register(appMux)
 	deps.Customers.Register(appMux)
+	deps.Settings.Register(appMux)
 	deps.Usage.Register(appMux)
 	deps.Appointments.Register(appMux)
 	deps.Openings.Register(appMux)

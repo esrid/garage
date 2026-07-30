@@ -35,6 +35,7 @@ templ Layout(title string, currentPath string) {
 					@NavLink("/app/customers", "Clients", currentPath)
 					@NavLink("/app/calls", "Appels", currentPath)
 					@NavLink("/app/usage", "Consommation", currentPath)
+					@NavLink("/app/settings", "Réglages", currentPath)
 				</nav>
 				// A form, not a link: F09 revokes the session on POST /auth/logout, and
 				// a GET logout can be fired by any third-party image tag.
