@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"mime"
 	"net/http"
 	"net/url"
 	"path"
@@ -113,8 +114,13 @@ func expiredSessionCookie() *http.Cookie {
 	}
 }
 
+// isFormContentType reads the header with mime.ParseMediaType rather than by
+// splitting on a semicolon: it is the documented parser, it lowercases the type,
+// it understands quoted parameters, and it refuses a malformed value instead of
+// silently accepting its prefix.
 func isFormContentType(value string) bool {
-	return strings.EqualFold(strings.TrimSpace(strings.Split(value, ";")[0]), "application/x-www-form-urlencoded")
+	mediaType, _, err := mime.ParseMediaType(value)
+	return err == nil && mediaType == "application/x-www-form-urlencoded"
 }
 
 func safeLoginNext(raw string) string {

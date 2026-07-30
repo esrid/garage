@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -212,12 +213,23 @@ func normalizeEmail(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
+// validEmail parses with net/mail, then applies our own policy on top.
+//
+// The parser is stdlib because address syntax is not something to re-derive by
+// counting "@". The extra rules are deliberate policy, not parsing: mail.
+// ParseAddress accepts "Name <a@b>" and a domain with no dot, neither of which
+// is a sign-in identifier we want to store.
 func validEmail(value string) bool {
-	if value == "" || len(value) > maxEmailBytes || strings.ContainsAny(value, " \t\r\n") || strings.Count(value, "@") != 1 {
+	if value == "" || len(value) > maxEmailBytes || strings.ContainsAny(value, " \t\r\n") {
 		return false
 	}
-	local, domainName, _ := strings.Cut(value, "@")
-	return local != "" && len(local) <= 64 && domainName != "" && strings.Contains(domainName, ".") && !strings.HasPrefix(domainName, ".") && !strings.HasSuffix(domainName, ".")
+	address, err := mail.ParseAddress(value)
+	if err != nil || address.Name != "" || address.Address != value {
+		return false
+	}
+	local, domainName, _ := strings.Cut(address.Address, "@")
+	return local != "" && len(local) <= 64 && strings.Contains(domainName, ".") &&
+		!strings.HasPrefix(domainName, ".") && !strings.HasSuffix(domainName, ".")
 }
 
 func staffIdentity(staff Staff) Identity {

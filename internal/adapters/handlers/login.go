@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -45,24 +46,25 @@ func (h *Login) Page(w http.ResponseWriter, r *http.Request) {
 
 // safeNext keeps only a local app path.
 //
-// The F09 middleware already encodes `next` from the request URI it saw, so this
-// is defence in depth against a hand-written link: anything that is not a plain
-// "/app..." path is dropped rather than sanitised, so no crafted value can turn
-// the login form into an open redirect. A dropped value costs one extra click.
+// net/url does the parsing: a login form is exactly where an open redirect is
+// worth the most, and deciding what "local" means by looking for prefixes is how
+// "//evil.example" or a backslash slips through. A URL that carries a scheme, a
+// host, or a user is not a path on this site, whatever it looks like.
+//
+// The F09 middleware already builds `next` from the request URI it saw, so this
+// is defence in depth against a hand-written link.
 func safeNext(raw string) string {
 	value := strings.TrimSpace(raw)
-	switch {
-	case value == "":
+	if value == "" || value != raw || strings.ContainsAny(value, "\r\n\\") {
 		return ""
-	case !strings.HasPrefix(value, "/app"):
-		return ""
-	// "//host" is a protocol-relative URL, and a backslash is read as a slash by
-	// some clients: both leave the site while looking local.
-	case strings.HasPrefix(value, "//"), strings.Contains(value, "\\"):
-		return ""
-	case strings.ContainsAny(value, "\r\n"):
-		return ""
-	default:
-		return value
 	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "" || parsed.Host != "" || parsed.User != nil || parsed.Opaque != "" {
+		return ""
+	}
+	// Only the staff area is worth returning to, and only as an absolute path.
+	if !strings.HasPrefix(parsed.Path, "/app") {
+		return ""
+	}
+	return value
 }

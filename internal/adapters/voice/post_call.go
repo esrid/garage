@@ -131,7 +131,7 @@ func (h *PostCallWebhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writePostCallError(w, http.StatusUnauthorized, "invalid signature")
 		return
 	}
-	if mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0])); mediaType != "application/json" {
+	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
 		writePostCallError(w, http.StatusUnsupportedMediaType, "unsupported media type")
 		return
 	}

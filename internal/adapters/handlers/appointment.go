@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -109,8 +110,10 @@ func (h *AppointmentMutations) redirectToDay(w http.ResponseWriter, r *http.Requ
 }
 
 func parseAppointmentForm(w http.ResponseWriter, r *http.Request) error {
-	contentType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-	if contentType != "application/x-www-form-urlencoded" {
+	// mime.ParseMediaType is the documented reader for this header: it lowercases
+	// the type, understands quoted parameters and refuses a malformed value.
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/x-www-form-urlencoded" {
 		return appointmentValidation("form", "content type must be application/x-www-form-urlencoded")
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxAppointmentFormBytes)

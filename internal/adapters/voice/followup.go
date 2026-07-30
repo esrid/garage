@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/core/followup"
@@ -55,8 +54,7 @@ func (h *FollowUpTool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeFollowUpError(w, err)
 		return
 	}
-	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-	if mediaType != "application/json" {
+	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
 		writeFollowUpError(w, followUpValidation())
 		return
 	}

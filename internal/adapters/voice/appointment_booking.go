@@ -200,8 +200,7 @@ func (h *AppointmentTools) authenticate(w http.ResponseWriter, r *http.Request, 
 }
 
 func decodeAppointmentToolRequest(w http.ResponseWriter, r *http.Request, destination any, booking bool) bool {
-	mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-	if mediaType != "application/json" {
+	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
 		writeAppointmentToolError(w, appointmentToolValidation("content_type"), booking)
 		return false
 	}

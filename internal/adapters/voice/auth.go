@@ -27,7 +27,7 @@ func NewTokenAuthenticator(encoded string) (*TokenAuthenticator, error) {
 		return authenticator, nil
 	}
 	seenTenants := make(map[string]struct{})
-	for _, item := range strings.Split(encoded, ",") {
+	for item := range strings.SplitSeq(encoded, ",") {
 		if strings.Count(item, ":") != 1 {
 			return nil, fmt.Errorf("voice credentials: each entry must be tenant-uuid:token")
 		}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/domain"
@@ -51,7 +50,7 @@ func (h *CustomerLookup) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeLookupJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
 		return
 	}
-	if mediaType := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0])); mediaType != "application/json" {
+	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
 		writeLookupJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid request"})
 		return
 	}
