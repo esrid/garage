@@ -46,6 +46,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		Appointments:     planning.NewAppointmentMutations(nil),
 		Openings:         planning.NewOpeningMutations(nil),
 		CustomerLookup:   voicetools.NewCustomerLookup(nil, nil),
+		CustomerRecord:   voicetools.NewCustomerRecord(nil, nil, nil),
 		AppointmentTools: voicetools.NewAppointmentTools(nil, nil),
 		FollowUpTool:     voicetools.NewFollowUpTool(nil, nil),
 		PostCallWebhook:  mustDisabledPostCallWebhook(),

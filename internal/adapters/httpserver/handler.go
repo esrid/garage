@@ -41,6 +41,7 @@ type Deps struct {
 
 	// Authenticated by their own tenant-scoped bearer token or signature.
 	CustomerLookup   *voicetools.CustomerLookup
+	CustomerRecord   *voicetools.CustomerRecord
 	AppointmentTools *voicetools.AppointmentTools
 	FollowUpTool     *voicetools.FollowUpTool
 	PostCallWebhook  *postcall.PostCallWebhook
@@ -118,6 +119,7 @@ func mountApplication(mux *http.ServeMux, deps Deps) {
 func mountVoiceTools(mux *http.ServeMux, deps Deps) {
 	tools := http.NewServeMux()
 	deps.CustomerLookup.Register(tools)
+	deps.CustomerRecord.Register(tools)
 	deps.AppointmentTools.Register(tools)
 	deps.FollowUpTool.Register(tools)
 

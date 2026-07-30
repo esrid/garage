@@ -105,6 +105,22 @@ workspace and are not guessed or duplicated in code.
 
 ## Official references
 
+## F19 — enregistrer l'appelant et son véhicule
+
+`POST /voice/tools/customer-record`, contrat gelé dans
+`docs/contracts/F19-voice-customer-create.md`. Même credential que les autres
+outils : un Bearer par garage, tenant résolu côté serveur.
+
+L'agent l'appelle quand `customer-lookup` a répondu `found:false`, après avoir
+fait confirmer la plaque à voix haute — le tool enregistre ce qu'on lui donne, la
+confirmation est une règle de prompt, pas d'endpoint.
+
+Il renvoie `customer_id` (et `vehicle_id` si une plaque était fournie), ce que
+`appointment-book` attend. Rappeler le même numéro ou la même plaque ne crée
+jamais de doublon : `created:false`. Un nom différent sur un numéro connu est
+ignoré, jamais écrit par-dessus. Une plaque déjà rattachée à un autre client du
+garage répond `409` : déplacer un véhicule est une décision du comptoir.
+
 - [Webhook tools](https://elevenlabs.io/docs/eleven-agents/customization/tools/webhook-tools)
 - [Tools overview](https://elevenlabs.io/docs/eleven-agents/customization/tools)
 - [Dynamic and secret variables](https://elevenlabs.io/docs/eleven-agents/customization/personalization/dynamic-variables)

@@ -21,6 +21,7 @@ import (
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
+	"github.com/esrid/garage/internal/core/vehicle"
 	"github.com/esrid/garage/internal/features/calls"
 	"github.com/esrid/garage/internal/features/dashboard"
 	"github.com/esrid/garage/internal/features/identity"
@@ -64,7 +65,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	planningHandler := planning.NewHandler(scheduling)
 	appointmentMutations := planning.NewAppointmentMutations(scheduling)
 	openingMutations := planning.NewOpeningMutations(scheduling)
-	customerLookup := voicetools.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
+	customerService := customer.NewService(database)
+	customerLookup := voicetools.NewCustomerLookup(customerService, voiceAuthenticator)
+	customerRecord := voicetools.NewCustomerRecord(customerService, vehicle.NewService(database), voiceAuthenticator)
 	appointmentTools := voicetools.NewAppointmentTools(scheduling, voiceAuthenticator)
 	followUpTool := voicetools.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
 	postCallWebhook, err := postcall.NewPostCallWebhook(
@@ -90,6 +93,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 			Appointments:     appointmentMutations,
 			Openings:         openingMutations,
 			CustomerLookup:   customerLookup,
+			CustomerRecord:   customerRecord,
 			AppointmentTools: appointmentTools,
 			FollowUpTool:     followUpTool,
 			PostCallWebhook:  postCallWebhook,
