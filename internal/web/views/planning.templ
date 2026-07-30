@@ -55,7 +55,12 @@ templ PlanningDay(planning Planning) {
 			// role="alert", not "status": the operator asked for something and it did
 			// not happen. It comes first, before the filters, because it is the
 			// reason the page was reloaded.
-			<p class="notice notice-alert" role="alert">{ message }</p>
+			// id + tabindex="-1": a role="alert" that is already in the document at
+			// load time is not reliably announced, and the fix without JavaScript is
+			// for the browser to land focus here. That needs "#planning-alert" on the
+			// redirect (MT-08). The attributes are inert until then: tabindex="-1"
+			// keeps the element out of the tab order.
+			<p class="notice notice-alert" role="alert" id="planning-alert" tabindex="-1">{ message }</p>
 		}
 		for _, notice := range planning.Notices {
 			<p class="notice" role="status">{ notice }</p>

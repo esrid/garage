@@ -32,6 +32,7 @@ templ Layout(title string, currentPath string) {
 				<nav class="app-nav" aria-label="Navigation principale">
 					@navLink("/app", "Aujourd'hui", currentPath)
 					@navLink("/app/planning", "Planning", currentPath)
+					@navLink("/app/calls", "Appels", currentPath)
 				</nav>
 				// A form, not a link: F09 revokes the session on POST /auth/logout, and
 				// a GET logout can be fired by any third-party image tag.

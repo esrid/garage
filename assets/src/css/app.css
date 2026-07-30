@@ -610,3 +610,54 @@ a {
   background: var(--color-danger-surface);
   border-color: var(--color-danger);
 }
+
+/* ------------------------------------------------------- call history --- */
+
+/* The facts of one call, side by side on a wide screen, stacked on a phone. */
+.call-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+
+  & dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  & dd {
+    margin: var(--space-1) 0 0;
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.call-summary,
+.call-transcript {
+  margin-block-end: var(--space-4);
+}
+
+.turn-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+}
+
+.turn-speaker {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.turn-offset {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A transcript is prose, so it gets a reading width instead of the full panel. */
+.turn-text {
+  max-width: var(--content-width);
+}

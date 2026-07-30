@@ -24,6 +24,8 @@ func a11yPages(t *testing.T) map[string]string {
 		"/tarifs":                      fetch(t, "/tarifs").Body.String(),
 		"/mentions-legales":            fetch(t, "/mentions-legales").Body.String(),
 		"/login":                       loginPage(t, "/login?error=invalid&next=/app/planning").Body.String(),
+		"/app/calls":                   getCalls(t, fullCallsStub(), "/app/calls").Body.String(),
+		"/app/calls/conv-1":            getCalls(t, fullCallsStub(), "/app/calls/conv-1").Body.String(),
 	}
 }
 
@@ -138,15 +140,23 @@ func TestEveryFormControlHasALabel(t *testing.T) {
 // not in the navigation marks nothing: claiming to be the current nav entry when
 // no entry leads here is a lie about where the visitor is.
 func TestCurrentPageIsMarkedExactlyOnce(t *testing.T) {
-	inNavigation := map[string]bool{"/": true, "/tarifs": true, "/app": true, "/app/planning": true, "/login": true}
+	// The routes the shells put in their navigation. A detail page under one of
+	// them marks that section: /app/calls/<id> is still "Appels".
+	navigation := []string{"/app", "/app/planning", "/app/calls", "/tarifs", "/login"}
 
 	for path, body := range a11yPages(t) {
 		count := strings.Count(body, `aria-current="page"`)
-		want := 0
 		// The nav marks a route, not a query string: ?error= is the same page.
 		route, _, _ := strings.Cut(path, "?")
-		if inNavigation[route] {
-			want = 1
+		want := 0
+		if route == "/" {
+			want = 1 // the brand is the only link to the home page
+		}
+		for _, entry := range navigation {
+			if strings.HasPrefix(route, entry) {
+				want = 1
+				break
+			}
 		}
 		if count != want {
 			t.Errorf("%s marks %d elements as the current page, want %d", path, count, want)
