@@ -20,6 +20,7 @@
 | F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | REVIEW — page servie sur `GET /app`, fragment `GET /app/today`, 11 tests, vérifiée en navigateur à 380 et 1280 px |
 | F05 | Voice find slots + book appointment | Agent A | F02A,F03 | `docs/contracts/F05-voice-book-appointment.md`, `docs/ELEVENLABS.md` (ajout F05 uniquement), `internal/adapters/voice/appointment_booking*.go`, `internal/adapters/httpserver/handler.go` (deux routes uniquement), `internal/di/**` (wiring uniquement) | `docs/contracts/F05-voice-book-appointment.md` (frozen 2026-07-30); interfaces `SchedulingProvider` inchangées | disponibilité persistée + confirmation après commit + auth/isolation + idempotence déterministe | REVIEW |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
+| F07 | Site public + SEO (PRD §11) | Agent B | - | `internal/web/views/site*`, `internal/adapters/handlers/site*.go`, `assets/src/css/site.css`, `assets/src/css/app.css` (un `@import`), `internal/adapters/httpserver/handler.go` (une ligne de montage) | routes `/`, `/fonctionnalites`, `/tarifs`, `/garages`, `/demo`, `/contact`, `/mentions-legales`, `/confidentialite`, `/cgv`, `/cgu`, `/robots.txt`, `/sitemap.xml` — aucun `tenant_id`, aucun état serveur | 12 tests ; SEO head par page, sitemap trié, footer sans 404, CTA sans self-link ; smoke sur PostgreSQL 18.4 réel ; screenshots 1280 + 380 px réels, clair et sombre | REVIEW |
 
 PR #1 was merged by the founder as `229598e` on `main`. The local
 `feat/foundation-postgres-css` HEAD is the second parent of that merge and has no
@@ -416,6 +417,80 @@ Validation :
 Docs officielles vérifiées le 2026-07-30 : Webhook Tools, secret headers,
 system__conversation_id et distinction retries event webhook / tool call dans
 docs/ELEVENLABS.md. F02B et tous les fichiers UI restent intacts.
+```
+
+## Open handoff — Agent B to Agent A, F07 review, 2026-07-30
+
+Contexte autonome pour une review sans historique préalable :
+
+```
+Feature: F07 Site public + SEO (PRD §11)
+From: Agent B (frontend)
+To: Agent A (reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Livré (commits 1fdeaa2 et 6adeff4) :
+  10 pages SSR : / /fonctionnalites /tarifs /garages /demo /contact
+                 /mentions-legales /confidentialite /cgv /cgu
+  GET /robots.txt        Disallow /app/ et /voice/ + ligne Sitemap
+  GET /sitemap.xml       urlset trié, URLs absolues, ni /app ni /voice
+  SEO par page : title, meta description, canonical, Open Graph, JSON-LD
+                 Organization minimal (nom + URL, rien d'inventé)
+
+Pourquoi une seule ligne dans internal/adapters/httpserver/handler.go :
+  handlers.NewSite().Register(mux). Le site n'a aucune dépendance, donc il n'a
+  pas besoin du DI root que tu tenais pour F05. Aucune route, signature ou
+  contrat existant modifié. Si tu préfères le construire dans le DI, c'est un
+  déplacement d'une ligne : dis-le, je ne l'ai pas mis là par principe.
+
+Ce que le handler garantit, à ne pas casser :
+  - "/" est enregistré en GET /{$} : un chemin inconnu fait 404, il ne rend pas
+    la page d'accueil. Sans ça un crawler reçoit des doublons infinis en 200.
+  - l'URL absolue vient de la requête et de X-Forwarded-Proto, pas d'une config.
+    ponytail assumé et commenté : quand le domaine existera, épingler une URL
+    absolue en config (ton `internal/config/**`) fermera le sujet du Host forgé.
+  - Cache-Control: public, max-age=300 sur les pages, 3600 sur robots/sitemap.
+    Ce sont des pages identiques pour tout le monde, aucune donnée tenant.
+
+Rien de tenant, rien de secret : aucune de ces routes ne lit un tenant, une
+session ou la base. Le site tourne même si PostgreSQL est à terre.
+
+Chiffres et claims : les prix (349 €/750 min, 599 €/1 750 min) et les alertes
+70/85/100 % viennent du PRD §1 et §5. Tout ce qui n'est pas vérifiable
+aujourd'hui — identité légale, hébergeur, téléphone, e-mail, numéro de démo —
+rend un bloc [À VALIDER] visible sur la page. Aucun témoignage, aucune
+référence client, aucune métrique inventée.
+
+Tests / validation :
+  go build ./... ; go vet ./... ; go test -race ./... (tout vert)
+  12 tests F07 : SEO head par page, 404 hors table, aucun lien interne mort,
+    nav/footer alignés sur la table de routes, robots, sitemap trié et absolu,
+    canonical qui suit X-Forwarded-Proto, chiffres du PRD présents
+  smoke réel : binaire booté contre postgres:18.4-bookworm, les 12 routes
+    répondent 200, /nope 404, /app toujours 200, app.css et site.css servis
+  visuel : screenshots relus à 1280 px et à 380 px réels, clair et sombre.
+    Piège noté au passage : Chrome en vieux headless refuse une fenêtre sous
+    ~500 px et *recadre* le screenshot — un faux débordement. Mesuré via une
+    iframe de 380 px : clientWidth=380, scrollWidth=380, 0 élément qui dépasse.
+
+Deux défauts trouvés et corrigés avant commit :
+  - colonnes du footer étirées par align-items: stretch -> align-items: start ;
+  - le CTA bas de /tarifs pointait sur /tarifs ; un test l'interdit maintenant.
+
+Chore fait au passage (00f0b2c), tu l'avais demandé deux fois :
+  internal/adapters/handlers/dashboard_fixture.go et son test supprimés. Le
+  styleguide avait déjà perdu le markup dashboard. Plus aucune fixture morte.
+
+Limites connues, à toi de rien faire :
+  - pas d'og:image : aucun visuel de marque n'existe, et une preview cassée est
+    pire que pas de preview. Le tag arrivera avec l'asset.
+  - pas de formulaire de contact : il n'enverrait rien sans boîte d'envoi. La
+    page le dit au visiteur au lieu de mentir.
+  - palette de marque toujours [À VALIDER] : l'accent neutre du template.
+  - parcours clavier et lecteur d'écran réels : toujours non testés.
+
+Next safe task Agent B : F02B (planning UI). Ton contrat F02A est gelé, mes GET
+sont /app/planning et /app/planning/day, tes trois POST restent à toi.
 ```
 
 ## SERIAL zones
