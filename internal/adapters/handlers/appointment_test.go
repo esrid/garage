@@ -148,18 +148,19 @@ func TestAppointmentRescheduleAndCancelUsePathID(t *testing.T) {
 
 func TestAppointmentBookMapsContractErrors(t *testing.T) {
 	tests := []struct {
-		name        string
-		withTenant  bool
-		providerErr error
-		mutate      func(url.Values)
-		want        int
+		name         string
+		withTenant   bool
+		providerErr  error
+		mutate       func(url.Values)
+		want         int
+		wantLocation string
 	}{
-		{"missing tenant", false, nil, nil, http.StatusUnauthorized},
-		{"invalid form", true, nil, func(form url.Values) { form.Set("duration_minutes", "20") }, http.StatusUnprocessableEntity},
-		{"not found", true, &domain.NotFoundError{Entity: "customer"}, nil, http.StatusNotFound},
-		{"capacity", true, appointment.ErrSlotUnavailable, nil, http.StatusConflict},
-		{"idempotency", true, appointment.ErrIdempotencyConflict, nil, http.StatusConflict},
-		{"provider unavailable", true, errors.New("database down"), nil, http.StatusServiceUnavailable},
+		{"missing tenant", false, nil, nil, http.StatusUnauthorized, ""},
+		{"invalid form", true, nil, func(form url.Values) { form.Set("duration_minutes", "20") }, http.StatusSeeOther, "/app/planning?error=invalid"},
+		{"not found", true, &domain.NotFoundError{Entity: "customer"}, nil, http.StatusSeeOther, "/app/planning?error=not_found"},
+		{"capacity", true, appointment.ErrSlotUnavailable, nil, http.StatusSeeOther, "/app/planning?error=conflict"},
+		{"idempotency", true, appointment.ErrIdempotencyConflict, nil, http.StatusSeeOther, "/app/planning?error=conflict"},
+		{"provider unavailable", true, errors.New("database down"), nil, http.StatusSeeOther, "/app/planning?error=unavailable"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -172,6 +173,9 @@ func TestAppointmentBookMapsContractErrors(t *testing.T) {
 			newMutationHandler(stub).Book(response, appointmentRequest(t, "/app/appointments", form, test.withTenant))
 			if response.Code != test.want {
 				t.Fatalf("status = %d, want %d; body=%q", response.Code, test.want, response.Body.String())
+			}
+			if location := response.Header().Get("Location"); location != test.wantLocation {
+				t.Fatalf("Location = %q, want %q", location, test.wantLocation)
 			}
 			if strings.Contains(response.Body.String(), "database down") {
 				t.Fatal("provider details leaked in HTTP response")
@@ -186,18 +190,47 @@ func TestAppointmentBookRejectsWrongContentTypeAndOversizedBody(t *testing.T) {
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
 		newMutationHandler(&schedulingStub{}).Book(response, request)
-		if response.Code != http.StatusUnprocessableEntity {
-			t.Fatalf("status = %d", response.Code)
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid" {
+			t.Fatalf("status = %d location=%q", response.Code, response.Header().Get("Location"))
 		}
 	})
 	t.Run("body limit", func(t *testing.T) {
 		request := appointmentRequest(t, "/app/appointments", url.Values{"note": {strings.Repeat("x", maxAppointmentFormBytes)}}, true)
 		response := httptest.NewRecorder()
 		newMutationHandler(&schedulingStub{}).Book(response, request)
-		if response.Code != http.StatusUnprocessableEntity {
-			t.Fatalf("status = %d", response.Code)
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid" {
+			t.Fatalf("status = %d location=%q", response.Code, response.Header().Get("Location"))
 		}
 	})
+}
+
+func TestAppointmentRescheduleAndCancelErrorsUsePlanningRedirect(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		form url.Values
+		call func(*AppointmentMutations, http.ResponseWriter, *http.Request)
+	}{
+		{
+			name: "reschedule",
+			form: url.Values{"start_at": {"2030-01-03T08:00:00-04:00"}, "duration_minutes": {"60"}, "idempotency_key": {"move-conflict"}},
+			call: (*AppointmentMutations).Reschedule,
+		},
+		{
+			name: "cancel",
+			form: url.Values{"idempotency_key": {"cancel-conflict"}},
+			call: (*AppointmentMutations).Cancel,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := appointmentRequest(t, "/app/appointments/"+handlerAppointmentID, test.form, true)
+			request.SetPathValue("id", handlerAppointmentID)
+			response := httptest.NewRecorder()
+			test.call(newMutationHandler(&schedulingStub{err: appointment.ErrSlotUnavailable}), response, request)
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=conflict" {
+				t.Fatalf("status=%d location=%q body=%q", response.Code, response.Header().Get("Location"), response.Body.String())
+			}
+		})
+	}
 }
 
 func TestAppointmentTodayProviderMapsOnlyPersistedAppointments(t *testing.T) {

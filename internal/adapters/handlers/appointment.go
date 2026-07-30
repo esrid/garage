@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -25,17 +26,17 @@ func NewAppointmentMutations(service *appointment.Service) *AppointmentMutations
 
 func (h *AppointmentMutations) Book(w http.ResponseWriter, r *http.Request) {
 	if err := parseAppointmentForm(w, r); err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	start, err := parseStart(r.PostForm.Get("start_at"))
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	duration, err := parseDuration(r.PostForm.Get("duration_minutes"))
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	created, err := h.service.Book(r.Context(), appointment.BookInput{
@@ -48,7 +49,7 @@ func (h *AppointmentMutations) Book(w http.ResponseWriter, r *http.Request) {
 		IdempotencyKey: r.PostForm.Get("idempotency_key"),
 	})
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	h.redirectToDay(w, r, created.Start)
@@ -56,17 +57,17 @@ func (h *AppointmentMutations) Book(w http.ResponseWriter, r *http.Request) {
 
 func (h *AppointmentMutations) Reschedule(w http.ResponseWriter, r *http.Request) {
 	if err := parseAppointmentForm(w, r); err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	start, err := parseStart(r.PostForm.Get("start_at"))
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	duration, err := parseDuration(r.PostForm.Get("duration_minutes"))
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	updated, err := h.service.Reschedule(r.Context(), appointment.RescheduleInput{
@@ -76,7 +77,7 @@ func (h *AppointmentMutations) Reschedule(w http.ResponseWriter, r *http.Request
 		IdempotencyKey: r.PostForm.Get("idempotency_key"),
 	})
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	h.redirectToDay(w, r, updated.Start)
@@ -84,7 +85,7 @@ func (h *AppointmentMutations) Reschedule(w http.ResponseWriter, r *http.Request
 
 func (h *AppointmentMutations) Cancel(w http.ResponseWriter, r *http.Request) {
 	if err := parseAppointmentForm(w, r); err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	cancelled, err := h.service.Cancel(r.Context(), appointment.CancelInput{
@@ -92,7 +93,7 @@ func (h *AppointmentMutations) Cancel(w http.ResponseWriter, r *http.Request) {
 		IdempotencyKey: r.PostForm.Get("idempotency_key"),
 	})
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	h.redirectToDay(w, r, cancelled.Start)
@@ -101,7 +102,7 @@ func (h *AppointmentMutations) Cancel(w http.ResponseWriter, r *http.Request) {
 func (h *AppointmentMutations) redirectToDay(w http.ResponseWriter, r *http.Request, instant time.Time) {
 	day, err := h.service.Day(r.Context(), instant)
 	if err != nil {
-		writeAppointmentError(w, err)
+		writeAppointmentError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/app/planning?day="+day.Date.Format(time.DateOnly), http.StatusSeeOther)
@@ -139,23 +140,26 @@ func appointmentValidation(field, message string) error {
 	return &domain.ValidationError{Entity: "appointment", Errors: map[string]string{field: message}}
 }
 
-func writeAppointmentError(w http.ResponseWriter, err error) {
+func writeAppointmentError(w http.ResponseWriter, r *http.Request, err error) {
 	w.Header().Set("Cache-Control", "no-store")
-	status := http.StatusServiceUnavailable
-	message := "service unavailable"
 	var unauthorized *domain.UnauthorizedError
+	if errors.As(err, &unauthorized) {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
+	code := "unavailable"
 	var validation *domain.ValidationError
 	var notFound *domain.NotFoundError
 	var alreadyExists *domain.AlreadyExistsError
 	switch {
-	case errors.As(err, &unauthorized):
-		status, message = http.StatusUnauthorized, "authentication required"
 	case errors.As(err, &validation), errors.Is(err, appointment.ErrInvalidTransition):
-		status, message = http.StatusUnprocessableEntity, "invalid appointment request"
+		code = "invalid"
 	case errors.As(err, &notFound):
-		status, message = http.StatusNotFound, "resource not found"
+		code = "not_found"
 	case errors.As(err, &alreadyExists), errors.Is(err, appointment.ErrSlotUnavailable), errors.Is(err, appointment.ErrIdempotencyConflict):
-		status, message = http.StatusConflict, "appointment conflict"
+		code = "conflict"
 	}
-	http.Error(w, message, status)
+	query := url.Values{"error": {code}}
+	http.Redirect(w, r, "/app/planning?"+query.Encode(), http.StatusSeeOther)
 }

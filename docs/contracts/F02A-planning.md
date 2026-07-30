@@ -147,6 +147,28 @@ there is no caller-controlled `return_to` open redirect.
 Error responses never expose SQL, DSN, another tenant's data or a guessed
 alternative slot. F02B renders human-readable HTML from these outcomes.
 
+### Amendment 2026-07-30 — F11 mutation error redirects
+
+After F09 authenticates the request, a mutation handler no longer leaves the
+garage on a raw `text/plain` error page. It redirects with `303 See Other` to:
+
+```text
+/app/planning?error=invalid
+/app/planning?error=not_found
+/app/planning?error=conflict
+/app/planning?error=unavailable
+```
+
+The values are a closed server-generated set. F02B may map them to human-readable
+HTML and must treat unknown values as `unavailable`. The error redirect omits
+`day`: a failed cancel has no date in its form, and the backend must not invent
+one when the requested resource/provider cannot be read. The planning page's
+existing default-day behavior applies.
+
+Authentication (`401`) and cross-origin protection (`403`) run before the
+mutation handler and retain their status codes. Success redirects, routes and
+form fields are unchanged. This amendment resolves mini-task MT-01.
+
 ## F04 dashboard adapter
 
 The adapter must satisfy the frozen seam exactly:
