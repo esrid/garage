@@ -39,7 +39,43 @@ Avant d'implémenter un comportement UI :
 6. seulement ensuite envisager une dépendance.
 
 ## Architecture
-Monolithe modulaire. Pas de Ports & Adapters cérémoniel partout.
+Monolithe modulaire, découpé par feature. Pas de Ports & Adapters cérémoniel partout.
+
+### Package par feature
+Une feature possède son handler, ses routes, ses gabarits et ses tests :
+
+```
+internal/features/<nom>/
+    handler.go      le point d'entrée HTTP
+    routes.go       ou Register(mux) sur le handler
+    page.templ      ses gabarits
+    *_test.go       ses tests
+```
+
+Le routeur racine ne nomme aucune URL de l'application : il compose les
+frontières de confiance (sondes, public, session staff, outils voix, webhooks) et
+chaque feature enregistre ses propres motifs. Ajouter une page est une ligne dans
+la feature qui y répond.
+
+Ce qui est partagé l'est parce que plusieurs features en ont besoin, jamais par
+défaut :
+- `internal/web/views` — le kit UI : shell, composants, DTO gelés par contrat ;
+- `internal/web/page` — `Render`, `RequestedDay`, `Origin` ;
+- `internal/adapters/voice` — le credential tenant-scoped et le préambule commun
+  aux outils ;
+- `internal/core/<domaine>` — le domaine, qui n'importe jamais un adaptateur.
+
+Un test qui vérifie une garantie traversant les pages (accessibilité, inventaire
+des routes) vit dans son propre package et atteint les features par ce qu'elles
+exportent, comme le routeur.
+
+### Standard library d'abord
+Avant d'écrire un helper, un parseur, un validateur ou une abstraction, vérifier
+dans l'ordre : capacité HTML/CSS native, stdlib Go, `golang.org/x`, dépendance
+déjà présente, puis seulement une implémentation locale. Vérifier la
+documentation officielle courante, pas la mémoire, et dire dans le résumé ce qui
+a été vérifié.
+
 Les interfaces provider sont justifiées pour les dépendances externes coûteuses/changeantes :
 - `VoiceProvider`
 - `SchedulingProvider`
