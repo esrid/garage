@@ -17,12 +17,13 @@ import (
 func a11yPages(t *testing.T) map[string]string {
 	t.Helper()
 	return map[string]string{
-		"/app":              get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.String(),
-		"/app/planning":     getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.String(),
-		"/":                 fetch(t, "/").Body.String(),
-		"/tarifs":           fetch(t, "/tarifs").Body.String(),
-		"/mentions-legales": fetch(t, "/mentions-legales").Body.String(),
-		"/login":            loginPage(t, "/login?error=invalid&next=/app/planning").Body.String(),
+		"/app":                         get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.String(),
+		"/app/planning":                getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.String(),
+		"/app/planning?error=conflict": getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning?error=conflict").Body.String(),
+		"/":                            fetch(t, "/").Body.String(),
+		"/tarifs":                      fetch(t, "/tarifs").Body.String(),
+		"/mentions-legales":            fetch(t, "/mentions-legales").Body.String(),
+		"/login":                       loginPage(t, "/login?error=invalid&next=/app/planning").Body.String(),
 	}
 }
 
@@ -142,7 +143,9 @@ func TestCurrentPageIsMarkedExactlyOnce(t *testing.T) {
 	for path, body := range a11yPages(t) {
 		count := strings.Count(body, `aria-current="page"`)
 		want := 0
-		if inNavigation[path] {
+		// The nav marks a route, not a query string: ?error= is the same page.
+		route, _, _ := strings.Cut(path, "?")
+		if inNavigation[route] {
 			want = 1
 		}
 		if count != want {

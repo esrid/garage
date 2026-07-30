@@ -51,6 +51,12 @@ templ PlanningPage(planning Planning) {
 // an htmx swap and a reload can never drift apart.
 templ PlanningDay(planning Planning) {
 	<div class="planning-day" id="planning-day">
+		if message := planning.AlertMessage(); message != "" {
+			// role="alert", not "status": the operator asked for something and it did
+			// not happen. It comes first, before the filters, because it is the
+			// reason the page was reloaded.
+			<p class="notice notice-alert" role="alert">{ message }</p>
+		}
 		for _, notice := range planning.Notices {
 			<p class="notice" role="status">{ notice }</p>
 		}

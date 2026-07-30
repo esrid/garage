@@ -73,6 +73,10 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 	ctx := r.Context()
 	query := r.URL.Query()
 	minutes, notices := planningMinutes(query.Get("duration_minutes"))
+	// Carried through every path below, degraded ones included: a failed mutation
+	// is the thing the operator most needs to read, and losing it because the day
+	// then failed to load would hide it exactly when the page looks broken.
+	alert := query.Get("error")
 
 	// The requested civil date is meaningless without the tenant timezone, and
 	// that timezone lives in the database. So: ask for the current day first, then
@@ -81,7 +85,7 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 	// the previous day (coordination note in WORKBOARD.md).
 	day, err := h.reader.Day(ctx, h.now())
 	if err != nil {
-		return h.unavailable(ctx, err, minutes)
+		return h.unavailable(ctx, err, minutes, alert)
 	}
 	if raw := strings.TrimSpace(query.Get("day")); raw != "" {
 		requested, parseErr := time.ParseInLocation(time.DateOnly, raw, day.Date.Location())
@@ -92,14 +96,18 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 			// instant, and midnight would sit on the boundary a timezone shift moves.
 			day, err = h.reader.Day(ctx, requested.Add(12*time.Hour))
 			if err != nil {
-				return h.unavailable(ctx, err, minutes)
+				return h.unavailable(ctx, err, minutes, alert)
 			}
 		}
 	}
 
 	data := views.Planning{
-		Day:             day.Date,
-		Timezone:        day.Timezone,
+		Day:      day.Date,
+		Timezone: day.Timezone,
+		// Set by the F02A mutation redirect (amendment 2026-07-30). The view maps the
+		// closed set and treats anything unknown as "unavailable"; the raw value never
+		// reaches the page.
+		Alert:           alert,
 		DurationMinutes: minutes,
 		Openings:        make([]views.Opening, 0, len(day.Openings)),
 		Appointments:    make([]views.Appointment, 0, len(day.Appointments)),
@@ -221,7 +229,7 @@ func planningMinutes(raw string) (int, []string) {
 	return minutes, nil
 }
 
-func (h *Planning) unavailable(ctx context.Context, err error, minutes int) (views.Planning, int) {
+func (h *Planning) unavailable(ctx context.Context, err error, minutes int, alert string) (views.Planning, int) {
 	var unauthorized *domain.UnauthorizedError
 	if errors.As(err, &unauthorized) {
 		return views.Planning{
@@ -233,6 +241,7 @@ func (h *Planning) unavailable(ctx context.Context, err error, minutes int) (vie
 	slog.ErrorContext(ctx, "planning: day unavailable", "err", err)
 	return views.Planning{
 		DurationMinutes: minutes,
+		Alert:           alert,
 		Degraded:        true,
 		Notices:         []string{"Le planning est momentanément indisponible. Réessayez dans un instant."},
 	}, http.StatusOK

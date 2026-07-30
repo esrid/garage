@@ -602,3 +602,11 @@ a {
   gap: var(--space-4);
   margin-block-end: var(--space-4);
 }
+
+/* A failed action, not a degraded view: danger tokens, so it is not mistaken for
+ * the yellow "here is what is missing" notice next to it. */
+.notice-alert {
+  color: var(--color-danger-text);
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger);
+}

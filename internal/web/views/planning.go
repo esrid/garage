@@ -41,6 +41,38 @@ type Planning struct {
 	SlotsUnavailable bool
 	// Notices are the human-readable problems to show, in a fixed order.
 	Notices []string
+	// Alert is the closed error code from a failed mutation, as redirected by F02A
+	// (amendment 2026-07-30). Separate from Notices: a notice explains why the page
+	// shows less, an alert says an action the operator asked for did not happen.
+	Alert string
+}
+
+// planningAlerts maps the closed set of mutation error codes to what the person at
+// the desk needs to read. No message claims a cause the code does not carry: a
+// conflict may be a taken slot or an already-recorded action, and pretending to
+// know which is how a desk learns to distrust the screen.
+var planningAlerts = map[string]string{
+	"invalid":     "Demande refusée : créneau ou durée invalide. Rien n'a été modifié.",
+	"not_found":   "Rendez-vous introuvable : il a peut-être été déplacé ou annulé entre-temps.",
+	"conflict":    "Créneau indisponible, ou action déjà enregistrée. La liste ci-dessous est à jour.",
+	"unavailable": "Le planning n'a pas pu être modifié. Réessayez dans un instant.",
+}
+
+// AlertMessage is the sentence to show, or "" when the visitor did not arrive from
+// a failed mutation.
+//
+// The contract requires treating an unknown value as `unavailable`: a code we do
+// not recognise means the backend and this page disagree, and the safe reading is
+// "it may not have happened".
+func (p Planning) AlertMessage() string {
+	code := strings.TrimSpace(p.Alert)
+	if code == "" {
+		return ""
+	}
+	if message, ok := planningAlerts[code]; ok {
+		return message
+	}
+	return planningAlerts["unavailable"]
 }
 
 type Opening struct {

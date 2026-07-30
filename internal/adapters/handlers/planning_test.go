@@ -440,3 +440,57 @@ func dashboardPreviewData() views.Today {
 		}},
 	}
 }
+
+// A failed mutation redirects here with a closed code (F02A amendment 2026-07-30).
+// The page has to say what happened without claiming a cause the code does not
+// carry, and without ever printing the raw value.
+func TestPlanningRendersMutationErrors(t *testing.T) {
+	cases := map[string]string{
+		"invalid":     "créneau ou durée invalide",
+		"not_found":   "Rendez-vous introuvable",
+		"conflict":    "Créneau indisponible, ou action déjà enregistrée",
+		"unavailable": "pas pu être modifié",
+		// The contract requires unknown values to read as unavailable.
+		"weird_code":                "pas pu être modifié",
+		"<script>alert(1)</script>": "pas pu être modifié",
+	}
+
+	for code, want := range cases {
+		body := getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning?error="+code).Body.String()
+		if !strings.Contains(body, want) {
+			t.Errorf("error=%q does not show %q", code, want)
+		}
+		if !strings.Contains(body, `role="alert"`) {
+			t.Errorf("error=%q is not announced as an alert", code)
+		}
+		if strings.Contains(body, "<script>") || strings.Contains(body, "weird_code") {
+			t.Errorf("error=%q reached the page as raw text", code)
+		}
+		// The day itself must still render: the operator needs to see the current
+		// state to decide what to do next.
+		if !strings.Contains(body, "Marie Lubin") {
+			t.Errorf("error=%q hid the day", code)
+		}
+	}
+
+	// No error parameter, no alert.
+	body := getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.String()
+	if strings.Contains(body, `role="alert"`) {
+		t.Error("the page shows an alert with nothing to report")
+	}
+}
+
+// A mutation error must survive a degraded page: that is exactly when the operator
+// is most likely to think their action went through.
+func TestPlanningKeepsTheAlertWhenTheDayFails(t *testing.T) {
+	stub := fullPlanningStub()
+	stub.dayErr = errors.New("database is down")
+
+	body := getPlanning(t, newTestPlanning(stub).Page, "/app/planning?error=conflict").Body.String()
+	if !strings.Contains(body, "Créneau indisponible") {
+		t.Error("the alert was lost when the day failed to load")
+	}
+	if !strings.Contains(body, "momentanément indisponible") {
+		t.Error("the degraded notice disappeared")
+	}
+}
