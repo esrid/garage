@@ -125,8 +125,14 @@ func writeSessionRequired(w http.ResponseWriter, r *http.Request) {
 	}
 	acceptsHTML := strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
 	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Mode")), "navigate") || acceptsHTML {
-		query := url.Values{"next": {r.URL.RequestURI()}}
-		http.Redirect(w, r, "/login?"+query.Encode(), http.StatusSeeOther)
+		target := "/login"
+		// Only a GET can be replayed by following a link after signing in. Carrying
+		// the URI of a POST — /app/appointments/{id}/cancel, say — would send the
+		// garage to a route that has no GET handler once they are back (MT-11).
+		if r.Method == http.MethodGet {
+			target += "?" + url.Values{"next": {r.URL.RequestURI()}}.Encode()
+		}
+		http.Redirect(w, r, target, http.StatusSeeOther)
 		return
 	}
 	http.Error(w, "authentication required", http.StatusUnauthorized)

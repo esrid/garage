@@ -22,12 +22,14 @@ import (
 )
 
 const (
-	maxPostCallBodyBytes  = 2 << 20
-	webhookPastTolerance  = 30 * time.Minute
-	maxAgentIDLength      = 512
-	minWebhookSecretBytes = 16
-	maxWebhookSecretBytes = 512
-	maxCostFiatMicroUSD   = int64(1_000_000_000_000)
+	maxPostCallBodyBytes = 2 << 20
+	webhookPastTolerance = 30 * time.Minute
+	// Clock skew between the provider and this server, not a replay window.
+	webhookFutureTolerance = 5 * time.Minute
+	maxAgentIDLength       = 512
+	minWebhookSecretBytes  = 16
+	maxWebhookSecretBytes  = 512
+	maxCostFiatMicroUSD    = int64(1_000_000_000_000)
 )
 
 type postCallRecorder interface {
@@ -168,6 +170,9 @@ func (h *PostCallWebhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *PostCallWebhook) validSignature(rawBody []byte, header string) bool {
 	var timestampValue, signatureValue string
 	for _, part := range strings.Split(header, ",") {
+		// The documented format has no spaces, but a provider that starts sending
+		// "t=1,​ v0=..." would otherwise fail every signature at once.
+		part = strings.TrimSpace(part)
 		switch {
 		case strings.HasPrefix(part, "t=") && timestampValue == "":
 			timestampValue = strings.TrimPrefix(part, "t=")
@@ -179,7 +184,11 @@ func (h *PostCallWebhook) validSignature(rawBody []byte, header string) bool {
 	if err != nil || timestampValue == "" || signatureValue == "" {
 		return false
 	}
-	if timestamp < h.now().Add(-webhookPastTolerance).Unix() {
+	// Bounded on both sides. The past window is what the contract specifies; the
+	// future one closes a signed event with a skewed clock staying replayable long
+	// after the 30 minutes are meant to have expired.
+	now := h.now()
+	if timestamp < now.Add(-webhookPastTolerance).Unix() || timestamp > now.Add(webhookFutureTolerance).Unix() {
 		return false
 	}
 	provided, err := hex.DecodeString(signatureValue)

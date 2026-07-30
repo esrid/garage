@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -60,11 +61,11 @@ func TestPageRendersTheDay(t *testing.T) {
 	body := get(t, newTestDashboard(provider).Page, "/app").Body.String()
 
 	for _, want := range []string{
-		"<!doctype html>",   // full page, not a fragment
+		"<!doctype html>",       // full page, not a fragment
 		"jeudi 30 juillet 2026", // the day, in French
 		"Marie Lubin",
-		"RDV pris",              // outcome label, not the raw value
-		"badge-success",         // tone derived from the status
+		"RDV pris",      // outcome label, not the raw value
+		"badge-success", // tone derived from the status
 		"4 min 20 s",
 		"AB-123-CD",
 		`hx-get="/app/today"`, // refresh is enhanced, not JS-only
@@ -222,5 +223,63 @@ func TestRowsFallBackToThePhoneNumber(t *testing.T) {
 	// The number titles the row, so the detail line must not repeat it.
 	if strings.Count(body, "0696222222") != 1 {
 		t.Error("the task phone number is rendered twice")
+	}
+}
+
+type pendingFollowUpsStub struct {
+	pending []followup.Pending
+	err     error
+}
+
+func (s *pendingFollowUpsStub) Pending(context.Context) ([]followup.Pending, error) {
+	return s.pending, s.err
+}
+
+// The "à traiter" panel was empty from the first day: the DTO existed, the data
+// did not. This is the mapping that fills it.
+func TestDashboardShowsPendingFollowUps(t *testing.T) {
+	base := &stubProvider{data: views.Today{Day: testDay}}
+	pending := &pendingFollowUpsStub{pending: []followup.Pending{
+		{
+			Request: followup.Request{
+				ID: "fu-1", Kind: followup.KindQuote, Phone: "+596696000002",
+				Details: "Devis embrayage", CreatedAt: testDay,
+			},
+			CustomerName: "Marie Lubin",
+		},
+		{
+			Request: followup.Request{
+				ID: "fu-2", Kind: followup.KindCallback, Phone: "+596696000003",
+				Details: "Rappeler après 17h", CreatedAt: testDay,
+			},
+		},
+	}}
+
+	provider := NewTodayWithFollowUpsProvider(base, pending)
+	body := get(t, newTestDashboard(provider).Page, "/app").Body.String()
+
+	for _, want := range []string{"Marie Lubin", "Devis embrayage", "Devis", "Rappeler après 17h", "+596696000003", "Rappel"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the tasks panel is missing %q", want)
+		}
+	}
+	// An unknown caller is titled by its number, never by an invented name.
+	if strings.Contains(body, "Numéro inconnu") {
+		t.Error("a row with a phone number was titled as unknown")
+	}
+}
+
+// A failing follow-up read must not silently show an empty queue: the dashboard
+// degrades as a whole, which is the behaviour F04 already guarantees.
+func TestDashboardFollowUpFailureDegradesThePage(t *testing.T) {
+	base := &stubProvider{data: views.Today{Day: testDay}}
+	pending := &pendingFollowUpsStub{err: errors.New("database is down")}
+
+	body := get(t, newTestDashboard(NewTodayWithFollowUpsProvider(base, pending)).Page, "/app").Body.String()
+	if !strings.Contains(body, "momentanément indisponibles") {
+		t.Error("the page does not explain the failure")
+	}
+	if strings.Contains(body, "database is down") {
+		t.Error("the page leaks the backend error")
 	}
 }

@@ -35,6 +35,18 @@ func (s *postCallRecorderStub) RecordPostCall(ctx context.Context, input convers
 	return s.record(ctx, input)
 }
 
+// acceptingRecorder returns whatever the handler asks it to record, so a test
+// about signatures does not have to restate the mapping assertions.
+func acceptingRecorder() *postCallRecorderStub {
+	return &postCallRecorderStub{record: func(ctx context.Context, input conversation.RecordInput) (conversation.RecordResult, error) {
+		tenantID, _ := tenant.IDFromContext(ctx)
+		return conversation.RecordResult{Conversation: conversation.Conversation{
+			ID: "019c09ea-bca7-7a5d-98b6-3f3b3ed79ec1", TenantID: tenantID,
+			Provider: conversation.ProviderElevenLabs, ProviderConversationID: input.ProviderConversationID,
+		}}, nil
+	}}
+}
+
 func postCallBody(agentID string) string {
 	return `{"type":"post_call_transcription","event_timestamp":1739537297,"data":{` +
 		`"agent_id":"` + agentID + `","conversation_id":"conv_123","status":"done",` +
@@ -222,5 +234,44 @@ func TestParseMicroUSD(t *testing.T) {
 		if _, err := parseMicroUSD(&number); err == nil {
 			t.Errorf("parseMicroUSD(%q) succeeded", input)
 		}
+	}
+}
+
+// The 30-minute window is meant to bound how long a delivery stays acceptable.
+// Without a future bound, an event signed with a skewed provider clock would stay
+// replayable long after that window was supposed to close.
+func TestPostCallWebhookBoundsTheTimestampOnBothSides(t *testing.T) {
+	tests := map[string]struct {
+		timestamp int64
+		want      int
+	}{
+		"just inside the past window":   {postCallNow - 29*60, http.StatusOK},
+		"beyond the past window":        {postCallNow - 31*60, http.StatusUnauthorized},
+		"small clock skew ahead":        {postCallNow + 60, http.StatusOK},
+		"far in the future":             {postCallNow + 10*365*24*3600, http.StatusUnauthorized},
+		"just beyond the future window": {postCallNow + 6*60, http.StatusUnauthorized},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			newPostCallHandler(t, acceptingRecorder()).ServeHTTP(response, signedPostCallRequest(postCallBody(postCallAgent), postCallSecret, test.timestamp))
+			if response.Code != test.want {
+				t.Errorf("status = %d, want %d", response.Code, test.want)
+			}
+		})
+	}
+}
+
+// The documented header has no spaces. Tolerating them costs one TrimSpace and
+// avoids every signature failing at once if the provider changes its formatting.
+func TestPostCallWebhookAcceptsSpacedSignatureHeader(t *testing.T) {
+	request := signedPostCallRequest(postCallBody(postCallAgent), postCallSecret, postCallNow)
+	request.Header.Set("ElevenLabs-Signature", strings.Replace(request.Header.Get("ElevenLabs-Signature"), ",", ", ", 1))
+
+	response := httptest.NewRecorder()
+	newPostCallHandler(t, acceptingRecorder()).ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200: a space after the comma must not reject a valid signature", response.Code)
 	}
 }

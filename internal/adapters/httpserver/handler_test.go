@@ -262,3 +262,35 @@ func TestApplicationRoutesRequireSessionAndRejectCrossOriginPosts(t *testing.T) 
 		t.Fatalf("cross-origin logout status = %d, want 403", response.Code)
 	}
 }
+
+// Only a GET can be replayed by following a link after signing in. A POST URI in
+// next sends the garage to a route with no GET handler once they are back.
+func TestSessionNextIsOnlyCarriedForReplayableRequests(t *testing.T) {
+	tests := map[string]struct {
+		method       string
+		target       string
+		wantLocation string
+	}{
+		"get keeps its path":   {http.MethodGet, "/app/planning?day=2030-01-02", "/login?next=%2Fapp%2Fplanning%3Fday%3D2030-01-02"},
+		"post carries no next": {http.MethodPost, "/app/appointments/019c09ea-bca7-7a5d-98b6-3f3b3ed79ec1/cancel", "/login"},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			request := httptest.NewRequest(test.method, test.target, nil)
+			request.Header.Set("Sec-Fetch-Mode", "navigate")
+			response := httptest.NewRecorder()
+
+			requireStaffSession(sessionVerifierStub{err: &domain.UnauthorizedError{}}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				t.Fatal("the protected handler must not run")
+			})).ServeHTTP(response, request)
+
+			if response.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want 303", response.Code)
+			}
+			if got := response.Header().Get("Location"); got != test.wantLocation {
+				t.Errorf("Location = %q, want %q", got, test.wantLocation)
+			}
+		})
+	}
+}
