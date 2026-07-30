@@ -225,7 +225,11 @@ templ planningAppointments(planning Day) {
 								}
 								{ " · " + views.OrDash(item.Service) }
 							</span>
-							if planningActionable(item.Status) {
+							// Two different questions: what may still be moved or
+							// cancelled, and what the vehicle's state allows next. An
+							// appointment in progress cannot be moved, but it can be
+							// finished.
+							if planningActionable(item.Status) || len(statusMoves(item)) > 0 {
 								@planningRowActions(planning, item)
 							}
 						</li>
@@ -251,7 +255,8 @@ templ planningRowActions(planning Day, item views.Appointment) {
 			Déplacer ou annuler
 			<span class="visually-hidden">{ " — " + rowContext(item) }</span>
 		</summary>
-		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/reschedule") }>
+		if planningActionable(item.Status) {
+			<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/reschedule") }>
 			if options := rescheduleOptions(planning, item); len(options) > 0 {
 				<div class="field">
 					<label class="field-label" for={ "move-" + item.ID }>
@@ -271,17 +276,33 @@ templ planningRowActions(planning Day, item views.Appointment) {
 					<span class="visually-hidden">{ " le rendez-vous de " + rowContext(item) }</span>
 				</button>
 			} else {
-				<p class="field-hint">
-					{ "Aucun autre créneau de " + minutesLabel(appointmentMinutes(item)) + " sur cette journée." }
-				</p>
-			}
-		</form>
-		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/cancel") }>
-			<input type="hidden" name="idempotency_key" value={ cancelKey(item) }/>
-			<button class="btn btn-quiet" type="submit">
-				Annuler le rendez-vous
-				<span class="visually-hidden">{ " de " + rowContext(item) }</span>
-			</button>
-		</form>
+					<p class="field-hint">
+						{ "Aucun autre créneau de " + minutesLabel(appointmentMinutes(item)) + " sur cette journée." }
+					</p>
+				}
+			</form>
+		}
+		if moves := statusMoves(item); len(moves) > 0 {
+			<div class="status-moves">
+				for _, move := range moves {
+					<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/status") }>
+						<input type="hidden" name="status" value={ move.Status }/>
+						<button class="btn btn-secondary" type="submit">
+							{ move.Label }
+							<span class="visually-hidden">{ " — " + rowContext(item) }</span>
+						</button>
+					</form>
+				}
+			</div>
+		}
+		if planningActionable(item.Status) {
+			<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/cancel") }>
+				<input type="hidden" name="idempotency_key" value={ cancelKey(item) }/>
+				<button class="btn btn-quiet" type="submit">
+					Annuler le rendez-vous
+					<span class="visually-hidden">{ " de " + rowContext(item) }</span>
+				</button>
+			</form>
+		}
 	</details>
 }

@@ -52,7 +52,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 
 	readiness := services.NewReadiness(database)
-	scheduling := appointment.NewService(database, database, database)
+	scheduling := appointment.NewService(database, database, database, database)
 	followUpReads := followup.NewReadService(database)
 	callHistoryProvider := calls.NewCallHistoryProvider(conversation.NewHistoryService(database), followUpReads)
 	// The day view is composed one domain at a time: appointments, then the calls

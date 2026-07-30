@@ -111,3 +111,40 @@ type DayReader interface {
 type OpeningConfigurer interface {
 	ConfigureOpening(context.Context, ConfigureOpeningInput) (Opening, error)
 }
+
+// UpdateStatusInput moves one appointment along the workshop's day.
+type UpdateStatusInput struct {
+	AppointmentID string
+	Status        Status
+}
+
+// StatusUpdater is the persistence capability the status change needs.
+type StatusUpdater interface {
+	UpdateAppointmentStatus(context.Context, UpdateStatusInput) (Appointment, error)
+}
+
+// allowedTransitions is the table frozen in docs/contracts/F02A-planning.md. It
+// lives here rather than in a handler because it is a rule about appointments,
+// not about HTTP: the same table has to hold whoever asks, a desk or a tool.
+var allowedTransitions = map[Status][]Status{
+	StatusPending:    {StatusConfirmed, StatusCancelled},
+	StatusConfirmed:  {StatusInProgress, StatusCancelled, StatusNoShow},
+	StatusInProgress: {StatusDone},
+}
+
+// NextStatuses is what may be done to an appointment in this state. The UI reads
+// it so a button never offers a move the service would refuse.
+func NextStatuses(from Status) []Status {
+	return allowedTransitions[from]
+}
+
+// CanTransition reports whether from -> to is allowed. Terminal states have no
+// entry in the table, so they answer false for everything.
+func CanTransition(from, to Status) bool {
+	for _, candidate := range allowedTransitions[from] {
+		if candidate == to {
+			return true
+		}
+	}
+	return false
+}

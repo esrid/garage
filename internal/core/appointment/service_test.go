@@ -59,7 +59,7 @@ func (s *providerStub) ConfigureOpening(context.Context, ConfigureOpeningInput) 
 
 func TestServiceBookTrimsInputAndUsesTenantContext(t *testing.T) {
 	provider := &providerStub{}
-	service := NewService(provider, provider, provider)
+	service := NewService(provider, provider, provider, nil)
 	start := time.Date(2030, 1, 2, 8, 0, 0, 0, time.UTC)
 
 	_, err := service.Book(tenant.WithID(context.Background(), "tenant-1"), BookInput{
@@ -79,7 +79,7 @@ func TestServiceBookTrimsInputAndUsesTenantContext(t *testing.T) {
 
 func TestServiceRejectsMissingTenantBeforeProvider(t *testing.T) {
 	provider := &providerStub{}
-	service := NewService(provider, provider, provider)
+	service := NewService(provider, provider, provider, nil)
 	_, err := service.Cancel(context.Background(), CancelInput{AppointmentID: testAppointmentID, IdempotencyKey: "cancel-1"})
 	var unauthorized *domain.UnauthorizedError
 	if !errors.As(err, &unauthorized) || provider.called {
@@ -104,7 +104,7 @@ func TestServiceRejectsInvalidWriteInputs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			provider := &providerStub{}
-			_, err := NewService(provider, provider, provider).Book(ctx, test.input)
+			_, err := NewService(provider, provider, provider, nil).Book(ctx, test.input)
 			var validation *domain.ValidationError
 			if !errors.As(err, &validation) || provider.called {
 				t.Fatalf("Book() error=%v provider.called=%t", err, provider.called)
@@ -115,12 +115,75 @@ func TestServiceRejectsInvalidWriteInputs(t *testing.T) {
 
 func TestServiceAcceptsUnicodeAtCharacterLimit(t *testing.T) {
 	provider := &providerStub{}
-	service := NewService(provider, provider, provider)
+	service := NewService(provider, provider, provider, nil)
 	_, err := service.Book(tenant.WithID(context.Background(), "tenant-1"), BookInput{
 		CustomerID: testCustomerID, ServiceLabel: strings.Repeat("é", 200),
 		Start: time.Now(), Duration: time.Hour, IdempotencyKey: "unicode-limit",
 	})
 	if err != nil || !provider.called {
 		t.Fatalf("Book() error=%v provider.called=%t", err, provider.called)
+	}
+}
+
+// The transition table is the contract frozen in docs/contracts/F02A-planning.md.
+// It lives in the domain so a desk button and a voice tool cannot disagree about
+// what is allowed.
+func TestTransitionTableMatchesTheFrozenContract(t *testing.T) {
+	allowed := map[Status][]Status{
+		StatusPending:    {StatusConfirmed, StatusCancelled},
+		StatusConfirmed:  {StatusInProgress, StatusCancelled, StatusNoShow},
+		StatusInProgress: {StatusDone},
+		StatusDone:       nil,
+		StatusCancelled:  nil,
+		StatusNoShow:     nil,
+	}
+	every := []Status{StatusPending, StatusConfirmed, StatusInProgress, StatusDone, StatusCancelled, StatusNoShow}
+
+	for from, wanted := range allowed {
+		for _, to := range every {
+			want := false
+			for _, candidate := range wanted {
+				if candidate == to {
+					want = true
+				}
+			}
+			if got := CanTransition(from, to); got != want {
+				t.Errorf("CanTransition(%q, %q) = %v, want %v", from, to, got, want)
+			}
+		}
+		if got := len(NextStatuses(from)); got != len(wanted) {
+			t.Errorf("NextStatuses(%q) has %d entries, want %d", from, got, len(wanted))
+		}
+	}
+}
+
+type statusUpdaterStub struct {
+	input UpdateStatusInput
+	calls int
+}
+
+func (s *statusUpdaterStub) UpdateAppointmentStatus(_ context.Context, input UpdateStatusInput) (Appointment, error) {
+	s.calls++
+	s.input = input
+	return Appointment{ID: input.AppointmentID, Status: input.Status}, nil
+}
+
+func TestUpdateStatusRefusesWhatIsNotAStatus(t *testing.T) {
+	updater := &statusUpdaterStub{}
+	service := NewService(nil, nil, nil, updater)
+	ctx := tenant.WithID(context.Background(), "019c09ea-bca7-7a5d-98b6-3f3b3ed79ec1")
+
+	if _, err := service.UpdateStatus(ctx, UpdateStatusInput{AppointmentID: "a", Status: "terminé"}); err == nil {
+		t.Error("a status outside the closed set was accepted")
+	}
+	if _, err := service.UpdateStatus(ctx, UpdateStatusInput{Status: StatusDone}); err == nil {
+		t.Error("a move without an appointment was accepted")
+	}
+	if updater.calls != 0 {
+		t.Error("an unusable move reached the store")
+	}
+
+	if _, err := service.UpdateStatus(context.Background(), UpdateStatusInput{AppointmentID: "a", Status: StatusDone}); err == nil {
+		t.Error("a move without a tenant was accepted")
 	}
 }

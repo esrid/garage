@@ -60,7 +60,7 @@ func newAppointmentTools(t *testing.T, provider *schedulingProviderStub) *Appoin
 	if err != nil {
 		t.Fatalf("voice.NewTokenAuthenticator() error = %v", err)
 	}
-	return NewAppointmentTools(appointment.NewService(provider, provider, nil), authenticator)
+	return NewAppointmentTools(appointment.NewService(provider, provider, nil, nil), authenticator)
 }
 
 func newAppointmentToolRequest(path, body, token string) *http.Request {

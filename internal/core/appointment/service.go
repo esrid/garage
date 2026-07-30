@@ -15,10 +15,18 @@ type Service struct {
 	provider   SchedulingProvider
 	reader     DayReader
 	configurer OpeningConfigurer
+	updater    StatusUpdater
 }
 
-func NewService(provider SchedulingProvider, reader DayReader, configurer OpeningConfigurer) *Service {
-	return &Service{provider: provider, reader: reader, configurer: configurer}
+// statusLabels is the closed set of statuses, used to refuse a value that is not
+// one before it reaches the database.
+var statusLabels = map[Status]struct{}{
+	StatusPending: {}, StatusConfirmed: {}, StatusInProgress: {},
+	StatusDone: {}, StatusCancelled: {}, StatusNoShow: {},
+}
+
+func NewService(provider SchedulingProvider, reader DayReader, configurer OpeningConfigurer, updater StatusUpdater) *Service {
+	return &Service{provider: provider, reader: reader, configurer: configurer, updater: updater}
 }
 
 func (s *Service) AvailableSlots(ctx context.Context, query AvailabilityQuery) ([]Slot, error) {
@@ -167,4 +175,23 @@ func validUUID(value string) bool {
 
 func validationError(field, message string) error {
 	return &domain.ValidationError{Entity: "appointment", Errors: map[string]string{field: message}}
+}
+
+// UpdateStatus moves an appointment along the day: confirmed, started, done,
+// cancelled, no-show.
+//
+// Repeating a move that already happened succeeds without touching anything. A
+// double click at the desk is the normal case, and answering it with a conflict
+// would teach the person to click twice more.
+func (s *Service) UpdateStatus(ctx context.Context, input UpdateStatusInput) (Appointment, error) {
+	if _, err := tenant.IDFromContext(ctx); err != nil {
+		return Appointment{}, err
+	}
+	if strings.TrimSpace(input.AppointmentID) == "" {
+		return Appointment{}, validationError("appointment_id", "is required")
+	}
+	if _, known := statusLabels[input.Status]; !known {
+		return Appointment{}, validationError("status", "is not an appointment status")
+	}
+	return s.updater.UpdateAppointmentStatus(ctx, input)
 }

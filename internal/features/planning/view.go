@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/web/views"
 	"strconv"
 	"strings"
@@ -204,4 +205,42 @@ func rescheduleKey(item views.Appointment) string {
 
 func cancelKey(item views.Appointment) string {
 	return idempotencyKey("cancel", rowState(item))
+}
+
+// StatusMove is a button the desk may press on a row: the target status and what
+// it is called in French.
+type StatusMove struct {
+	Status string
+	Label  string
+}
+
+var statusMoveLabels = map[string]string{
+	"confirmed":   "Confirmer",
+	"in_progress": "Démarrer",
+	"done":        "Terminer",
+	"no_show":     "Client absent",
+	"cancelled":   "Annuler le rendez-vous",
+}
+
+// statusMoves lists what this row allows, straight from the domain's frozen
+// transition table. The buttons cannot drift from what the service accepts,
+// because they are the same list.
+//
+// Cancelling is not here: it has its own form, and mixing a terminal action into
+// the same row of buttons is how one gets pressed by accident.
+func statusMoves(item views.Appointment) []StatusMove {
+	moves := make([]StatusMove, 0, 3)
+	for _, status := range appointment.NextStatuses(appointment.Status(item.Status)) {
+		if status == appointment.StatusCancelled {
+			continue
+		}
+		moves = append(moves, StatusMove{Status: string(status), Label: statusMoveLabels[string(status)]})
+	}
+	return moves
+}
+
+// statusKey derives the idempotency-free form key for a status move: the same
+// deterministic rule as the other row forms, so a double submit is a no-op.
+func statusKey(item views.Appointment, status string) string {
+	return idempotencyKey("status", rowState(item), status)
 }

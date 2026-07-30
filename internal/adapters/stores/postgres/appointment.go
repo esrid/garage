@@ -479,3 +479,49 @@ func hasCapacity(entries []appointment.DayEntry, openingID string, start, end ti
 	}
 	return true
 }
+
+var _ appointment.StatusUpdater = (*Store)(nil)
+
+// UpdateAppointmentStatus moves one appointment, refusing a move the frozen
+// transition table does not allow.
+//
+// The check is in the UPDATE itself rather than in a read followed by a write:
+// two people at the desk pressing "terminé" and "annulé" at the same moment would
+// otherwise both read "in progress" and both believe they won.
+func (s *Store) UpdateAppointmentStatus(ctx context.Context, input appointment.UpdateStatusInput) (appointment.Appointment, error) {
+	tenantID, err := tenant.IDFromContext(ctx)
+	if err != nil {
+		return appointment.Appointment{}, err
+	}
+
+	const query = `
+		UPDATE appointments
+		SET status = $3, updated_at = now()
+		WHERE tenant_id = $1::uuid AND id = $2::uuid
+			AND (status = $3 OR status = ANY($4))
+		RETURNING ` + appointmentColumns
+
+	// The statuses this move is legal from, which is the frozen table read
+	// backwards. Passing the current status too makes repeating a move a no-op
+	// rather than a conflict.
+	var from []string
+	for _, status := range []appointment.Status{
+		appointment.StatusPending, appointment.StatusConfirmed, appointment.StatusInProgress,
+	} {
+		if appointment.CanTransition(status, input.Status) {
+			from = append(from, string(status))
+		}
+	}
+
+	result, err := scanAppointment(s.pool.QueryRow(ctx, query, tenantID, input.AppointmentID, string(input.Status), from))
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Either the appointment is not this tenant's, or it is in a state this
+		// move cannot come from. Telling those apart would leak the difference
+		// between "not yours" and "not now".
+		return appointment.Appointment{}, appointment.ErrInvalidTransition
+	}
+	if err != nil {
+		return appointment.Appointment{}, fmt.Errorf("postgres: update appointment status: %w", err)
+	}
+	return result, nil
+}

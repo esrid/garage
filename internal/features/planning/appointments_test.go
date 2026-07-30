@@ -61,7 +61,7 @@ func (s *schedulingStub) ConfigureOpening(context.Context, appointment.Configure
 }
 
 func newMutationHandler(stub *schedulingStub) *AppointmentMutations {
-	return NewAppointmentMutations(appointment.NewService(stub, stub, stub))
+	return NewAppointmentMutations(appointment.NewService(stub, stub, stub, nil))
 }
 
 func appointmentRequest(t *testing.T, target string, form url.Values, withTenant bool) *http.Request {
@@ -230,5 +230,56 @@ func TestAppointmentRescheduleAndCancelErrorsUsePlanningRedirect(t *testing.T) {
 				t.Fatalf("status=%d location=%q body=%q", response.Code, response.Header().Get("Location"), response.Body.String())
 			}
 		})
+	}
+}
+
+// The row shows what the domain allows and nothing else: a vehicle in progress
+// cannot be moved, but it can be finished, and a terminal one offers nothing.
+//
+// Rows are found by the person they are about, not by an id: a terminal row has
+// no form at all, so its id appears nowhere in the markup - which is the point.
+func rowFor(t *testing.T, body, customer string) string {
+	t.Helper()
+	rows := strings.Split(body, `<li class="item">`)
+	for _, row := range rows {
+		if strings.Contains(row, customer) {
+			return row
+		}
+	}
+	t.Fatalf("no row for %s", customer)
+	return ""
+}
+
+func TestPlanningRowsOfferOnlyTheAllowedMoves(t *testing.T) {
+	stub := fullPlanningStub()
+	stub.appointments[0].Status = appointment.StatusInProgress
+
+	body := getPlanning(t, newTestPlanning(stub).Page, "/app/planning").Body.String()
+
+	inProgress := rowFor(t, body, "Marie Lubin")
+	if !strings.Contains(inProgress, `value="done"`) {
+		t.Error("an appointment in progress cannot be finished")
+	}
+	for _, forbidden := range []string{"/reschedule", "/cancel", `value="confirmed"`} {
+		if strings.Contains(inProgress, forbidden) {
+			t.Errorf("an appointment in progress still offers %q", forbidden)
+		}
+	}
+
+	terminal := rowFor(t, body, "Garage Morne-Rouge")
+	for _, forbidden := range []string{"/status", "/reschedule", "/cancel"} {
+		if strings.Contains(terminal, forbidden) {
+			t.Errorf("a cancelled appointment still offers %q", forbidden)
+		}
+	}
+}
+
+// A pending row is confirmed from the desk, which is the first move of the table.
+func TestPlanningPendingRowCanBeConfirmed(t *testing.T) {
+	body := getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.String()
+	row := rowFor(t, body, "Jean-Claude Sainte-Rose")
+
+	if !strings.Contains(row, `value="confirmed"`) || !strings.Contains(row, "Confirmer") {
+		t.Error("a pending appointment cannot be confirmed from the planning")
 	}
 }

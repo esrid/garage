@@ -178,6 +178,30 @@ and is not sent back to the server. It lets the browser focus F15's existing
 `id="planning-alert" tabindex="-1"` error message after navigation. Successful
 mutation redirects keep their existing day URL without a fragment.
 
+### Amendment 2026-07-30 — F21 status moves
+
+The transition table above had no route: it was declared, never reachable, and
+`ErrInvalidTransition` was never returned by anything.
+
+`POST /app/appointments/{id}/status`, behind the staff session, with one form
+field `status` taken from the canonical set. It answers `303` to the appointment's
+day like the other mutations, and its failures use the same closed error codes.
+
+- the move is checked inside the `UPDATE`, not in a read followed by a write: two
+  people at the desk pressing different buttons at the same moment must not both
+  believe they won;
+- repeating a move that already happened succeeds and changes nothing. A double
+  click is the normal case at a desk;
+- a move from a state the table forbids, and a move on another tenant's
+  appointment, answer the same refusal: telling them apart would leak the
+  difference between "not yours" and "not now";
+- the planning renders exactly the moves the table allows for each row, from the
+  same function the service validates against, so a button cannot offer what the
+  service refuses.
+
+Cancellation keeps its own route and its own idempotency key; it is terminal, and
+mixing it into the row of status buttons is how it gets pressed by accident.
+
 ## F04 dashboard adapter
 
 The adapter must satisfy the frozen seam exactly:

@@ -31,6 +31,7 @@ func (h *AppointmentMutations) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /app/appointments", h.Book)
 	mux.HandleFunc("POST /app/appointments/{id}/reschedule", h.Reschedule)
 	mux.HandleFunc("POST /app/appointments/{id}/cancel", h.Cancel)
+	mux.HandleFunc("POST /app/appointments/{id}/status", h.UpdateStatus)
 }
 
 func (h *AppointmentMutations) Book(w http.ResponseWriter, r *http.Request) {
@@ -173,4 +174,26 @@ func writeAppointmentError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	query := url.Values{"error": {code}}
 	http.Redirect(w, r, "/app/planning?"+query.Encode()+"#planning-alert", http.StatusSeeOther)
+}
+
+// UpdateStatus serves POST /app/appointments/{id}/status: the desk moving a
+// vehicle along the day - confirmed, started, done, no-show.
+//
+// The PRD asks for a simple intervention status, and this is it: the appointment
+// itself carries the state, with the transitions F02A already froze. No second
+// entity, no parallel workflow to keep in sync with the planning.
+func (h *AppointmentMutations) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	if err := parseAppointmentForm(w, r); err != nil {
+		writeAppointmentError(w, r, err)
+		return
+	}
+	updated, err := h.service.UpdateStatus(r.Context(), appointment.UpdateStatusInput{
+		AppointmentID: r.PathValue("id"),
+		Status:        appointment.Status(strings.TrimSpace(r.PostForm.Get("status"))),
+	})
+	if err != nil {
+		writeAppointmentError(w, r, err)
+		return
+	}
+	h.redirectToDay(w, r, updated.Start)
 }

@@ -64,7 +64,7 @@ func TestAppointmentSchedulingTenantIsolationIdempotencyAndCapacity(t *testing.T
 		t.Fatalf("create vehicle A: %v", err)
 	}
 
-	scheduling := appointment.NewService(store, store, store)
+	scheduling := appointment.NewService(store, store, store, store)
 	start := mustParseTime(t, "2030-01-02T08:00:00-04:00")
 	for _, tenantCtx := range []context.Context{ctxA, ctxB} {
 		if _, err := scheduling.ConfigureOpening(tenantCtx, appointment.ConfigureOpeningInput{Start: start, End: start.Add(2 * time.Hour), Capacity: 1}); err != nil {
@@ -212,7 +212,7 @@ func TestCapacityUsesPeakConcurrencyInsteadOfTotalOverlapCount(t *testing.T) {
 		t.Fatalf("create customer: %v", err)
 	}
 
-	scheduling := appointment.NewService(store, store, store)
+	scheduling := appointment.NewService(store, store, store, store)
 	start := mustParseTime(t, "2030-02-04T08:00:00-04:00")
 	if _, err := scheduling.ConfigureOpening(tenantCtx, appointment.ConfigureOpeningInput{
 		Start: start, End: start.Add(4 * time.Hour), Capacity: 2,
@@ -285,7 +285,7 @@ func TestAvailableSlotsClipsCrossMidnightOpeningsAndCountsOverlappingAppointment
 		t.Fatalf("create customer: %v", err)
 	}
 
-	scheduling := appointment.NewService(store, store, store)
+	scheduling := appointment.NewService(store, store, store, store)
 	openingStart := mustParseTime(t, "2030-01-01T22:00:00-04:00")
 	if _, err := scheduling.ConfigureOpening(tenantCtx, appointment.ConfigureOpeningInput{
 		Start: openingStart, End: openingStart.Add(6 * time.Hour), Capacity: 1,
@@ -321,4 +321,94 @@ func mustParseTime(t *testing.T, value string) time.Time {
 		t.Fatalf("parse time %q: %v", value, err)
 	}
 	return parsed
+}
+
+// The status move is guarded in the UPDATE itself: two people at the desk
+// pressing different buttons at the same moment must not both believe they won,
+// and another tenant's appointment must not move at all.
+func TestUpdateAppointmentStatusFollowsTheTransitionTable(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_DSN")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_DSN is required for the PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	store, err := Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	workshop, err := tenant.NewService(store).Create(ctx, tenant.CreateInput{Name: "Garage status A"})
+	if err != nil {
+		t.Fatalf("create tenant: %v", err)
+	}
+	ctxA := tenant.WithID(ctx, workshop.ID)
+	caller, err := customer.NewService(store).Create(ctxA, customer.CreateInput{FirstName: "Ana", Phone: "+596696300001"})
+	if err != nil {
+		t.Fatalf("create customer: %v", err)
+	}
+	scheduling := appointment.NewService(store, store, store, store)
+	openingStart := mustParseTime(t, "2030-03-04T08:00:00-04:00")
+	if _, err := scheduling.ConfigureOpening(ctxA, appointment.ConfigureOpeningInput{
+		Start: openingStart, End: openingStart.Add(2 * time.Hour), Capacity: 1,
+	}); err != nil {
+		t.Fatalf("configure opening: %v", err)
+	}
+
+	booked, err := scheduling.Book(ctxA, appointment.BookInput{
+		CustomerID: caller.ID, ServiceLabel: "Vidange",
+		Start: openingStart, Duration: time.Hour, IdempotencyKey: "status-key-1",
+	})
+	if err != nil {
+		t.Fatalf("Book() error = %v", err)
+	}
+
+	// confirmed -> in_progress -> done, the frozen path.
+	started, err := scheduling.UpdateStatus(ctxA, appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusInProgress,
+	})
+	if err != nil || started.Status != appointment.StatusInProgress {
+		t.Fatalf("start: %v %q", err, started.Status)
+	}
+
+	// Repeating it is a no-op, not a conflict: a double click at a desk is the
+	// normal case.
+	again, err := scheduling.UpdateStatus(ctxA, appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusInProgress,
+	})
+	if err != nil || again.Status != appointment.StatusInProgress {
+		t.Fatalf("repeat: %v %q", err, again.Status)
+	}
+
+	// in_progress -> confirmed is not in the table.
+	if _, err := scheduling.UpdateStatus(ctxA, appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusConfirmed,
+	}); !errors.Is(err, appointment.ErrInvalidTransition) {
+		t.Errorf("backwards move error = %v, want ErrInvalidTransition", err)
+	}
+
+	done, err := scheduling.UpdateStatus(ctxA, appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusDone,
+	})
+	if err != nil || done.Status != appointment.StatusDone {
+		t.Fatalf("finish: %v %q", err, done.Status)
+	}
+
+	// done is terminal.
+	if _, err := scheduling.UpdateStatus(ctxA, appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusInProgress,
+	}); !errors.Is(err, appointment.ErrInvalidTransition) {
+		t.Errorf("move out of a terminal state error = %v, want ErrInvalidTransition", err)
+	}
+
+	// Another tenant cannot move it, and cannot tell it apart from a refused move.
+	other, err := tenant.NewService(store).Create(ctx, tenant.CreateInput{Name: "Garage status B"})
+	if err != nil {
+		t.Fatalf("create other tenant: %v", err)
+	}
+	if _, err := scheduling.UpdateStatus(tenant.WithID(ctx, other.ID), appointment.UpdateStatusInput{
+		AppointmentID: booked.ID, Status: appointment.StatusDone,
+	}); !errors.Is(err, appointment.ErrInvalidTransition) {
+		t.Errorf("cross-tenant move error = %v, want the same refusal", err)
+	}
 }

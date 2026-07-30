@@ -57,7 +57,7 @@ func postOpening(t *testing.T, service *appointment.Service, form url.Values) *h
 // whole day by four hours.
 func TestOpeningTimesAreBuiltInTheWorkshopTimezone(t *testing.T) {
 	configurer := &openingConfigurerStub{}
-	service := appointment.NewService(nil, &planningDayReaderStub{}, configurer)
+	service := appointment.NewService(nil, &planningDayReaderStub{}, configurer, nil)
 
 	response := postOpening(t, service, url.Values{
 		"day": {"2026-07-31"}, "starts_at": {"08:00"}, "ends_at": {"17:00"}, "capacity": {"2"},
@@ -90,7 +90,7 @@ func TestOpeningRejectsUnusableInput(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			configurer := &openingConfigurerStub{}
-			response := postOpening(t, appointment.NewService(nil, &planningDayReaderStub{}, configurer), form)
+			response := postOpening(t, appointment.NewService(nil, &planningDayReaderStub{}, configurer, nil), form)
 
 			if response.Code != http.StatusSeeOther {
 				t.Fatalf("status = %d, want 303", response.Code)
