@@ -11,9 +11,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/esrid/garage/internal/adapters/handlers"
 	"github.com/esrid/garage/internal/adapters/httpserver"
 	"github.com/esrid/garage/internal/adapters/stores/postgres"
 	"github.com/esrid/garage/internal/config"
+	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/services"
 )
 
@@ -34,9 +36,12 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 
 	readiness := services.NewReadiness(database)
+	scheduling := appointment.NewService(database, database, database)
+	dashboard := handlers.NewDashboard(handlers.NewAppointmentTodayProvider(scheduling))
+	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness),
+		Handler:           httpserver.New(readiness, dashboard, appointmentMutations),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

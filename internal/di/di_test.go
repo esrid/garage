@@ -4,14 +4,16 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/esrid/garage/internal/config"
 )
 
-func TestNewWiresReadinessSlice(t *testing.T) {
+func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_DSN")
 	if dsn == "" {
 		t.Skip("TEST_DATABASE_DSN is required for the PostgreSQL integration test")
@@ -31,6 +33,51 @@ func TestNewWiresReadinessSlice(t *testing.T) {
 	app.server.Handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("readiness status = %d, want %d", response.Code, http.StatusOK)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/app", nil)
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "momentanément indisponibles") {
+		t.Fatalf("dashboard status=%d body=%q, want degraded real-provider response", response.Code, response.Body.String())
+	}
+
+	appointmentID := "019c09ea-bca7-7a5d-98b6-3f3b3ed79ea3"
+	routes := []struct {
+		path string
+		form url.Values
+	}{
+		{
+			"/app/appointments",
+			url.Values{
+				"customer_id":      {"019c09ea-bca7-7a5d-98b6-3f3b3ed79ea1"},
+				"service_label":    {"Révision"},
+				"start_at":         {"2030-01-02T08:00:00-04:00"},
+				"duration_minutes": {"60"},
+				"idempotency_key":  {"di-book-route"},
+			},
+		},
+		{
+			"/app/appointments/" + appointmentID + "/reschedule",
+			url.Values{
+				"start_at":         {"2030-01-02T09:00:00-04:00"},
+				"duration_minutes": {"60"},
+				"idempotency_key":  {"di-move-route"},
+			},
+		},
+		{
+			"/app/appointments/" + appointmentID + "/cancel",
+			url.Values{"idempotency_key": {"di-cancel-route"}},
+		},
+	}
+	for _, route := range routes {
+		request = httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(route.form.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		response = httptest.NewRecorder()
+		app.server.Handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Errorf("POST %s status = %d, want %d", route.path, response.Code, http.StatusUnauthorized)
+		}
 	}
 }
 

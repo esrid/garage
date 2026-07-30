@@ -17,19 +17,17 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments *handlers.AppointmentMutations) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
 	mux.HandleFunc("GET /readyz", h.ready)
 
-	// TODO(F02A): FixtureToday is presentation fixture data. When the real
-	// provider exists, inject it from the DI root instead of constructing it
-	// here. It is built here on purpose for now: changing New's signature would
-	// touch the DI root, which Agent A holds.
-	dashboard := handlers.NewDashboard(handlers.FixtureToday{})
 	mux.HandleFunc("GET /app", dashboard.Page)
 	mux.HandleFunc("GET /app/today", dashboard.Fragment)
+	mux.HandleFunc("POST /app/appointments", appointments.Book)
+	mux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
+	mux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 

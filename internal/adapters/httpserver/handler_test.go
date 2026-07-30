@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/esrid/garage/internal/adapters/handlers"
 )
 
 type readinessStub struct {
@@ -14,6 +16,10 @@ type readinessStub struct {
 }
 
 func (s readinessStub) Check(context.Context) error { return s.err }
+
+func newHealthTestHandler(readiness readinessChecker) http.Handler {
+	return New(readiness, handlers.NewDashboard(nil), handlers.NewAppointmentMutations(nil))
+}
 
 func TestHealthEndpoints(t *testing.T) {
 	tests := []struct {
@@ -32,7 +38,7 @@ func TestHealthEndpoints(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.path, nil)
 			response := httptest.NewRecorder()
-			New(readinessStub{err: test.readiness}).ServeHTTP(response, request)
+			newHealthTestHandler(readinessStub{err: test.readiness}).ServeHTTP(response, request)
 
 			if response.Code != test.wantStatus {
 				t.Fatalf("status = %d, want %d", response.Code, test.wantStatus)
@@ -56,7 +62,7 @@ func TestHealthEndpoints(t *testing.T) {
 func TestHealthEndpointRejectsOtherMethods(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/healthz", nil)
 	response := httptest.NewRecorder()
-	New(readinessStub{}).ServeHTTP(response, request)
+	newHealthTestHandler(readinessStub{}).ServeHTTP(response, request)
 	if response.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusMethodNotAllowed)
 	}

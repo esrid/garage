@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|---|---|
 | F00 | Socle PostgreSQL 18 + pgx + Goose | Agent A | - | `go.mod`, `go.sum`, `Dockerfile`, `compose.yml`, `.github/workflows/ci.yml`, `internal/config/**`, `internal/di/**`, `internal/adapters/stores/postgres/**`, suppression de `internal/adapters/stores/sqlite/**`, `docs/POSTGRESQL.md`, `README.md` | `postgres.Store` satisfait `ports.ReadinessStore`; migrations SQL embarquées | démarrage, migrations idempotentes, readiness, tests PostgreSQL | MERGED |
 | F01 | Tenant + Customer + Vehicle | Agent A | F00 | `docs/contracts/F01-customer-vehicle.md`, `docs/DATABASE.md`, `internal/core/tenant/**`, `internal/core/customer/**`, `internal/core/vehicle/**`, `internal/adapters/stores/postgres/tenant*.go`, `internal/adapters/stores/postgres/customer*.go`, `internal/adapters/stores/postgres/vehicle*.go`, `internal/adapters/stores/postgres/migrations/00002_tenant_customer_vehicle.sql`, `cmd/main.go` (import stdlib `time/tzdata` uniquement) | `docs/contracts/F01-customer-vehicle.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte serveur | create/find by phone, tenant isolation | REVIEW |
-| F02A | Mini-planning atelier — backend | Agent A | F00 | `internal/core/appointment/**`, store PostgreSQL, handlers/services scheduling, migrations associées | scheduling domain API; recheck avant booking; idempotence écriture | disponibilité + création/modification/annulation + tenant isolation | READY |
+| F02A | Mini-planning atelier — backend | Agent A | F00,F01 | `docs/contracts/F02A-planning.md`, `docs/SCHEDULING.md`, `internal/core/appointment/**`, `internal/adapters/stores/postgres/appointment*.go`, `internal/adapters/stores/postgres/migrations/00003_appointment.sql`, `internal/adapters/handlers/appointment*.go`, `internal/adapters/httpserver/handler.go` (routing contracté uniquement), `internal/di/**` (wiring uniquement), suppression de `internal/adapters/handlers/dashboard_fixture.go` après adaptateur réel | `docs/contracts/F02A-planning.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte; recheck atomique; idempotence | disponibilité + créer/déplacer/annuler + tenant isolation + dashboard réel | REVIEW |
 | F02B | Mini-planning atelier — UI | Agent B | F02A | vues planning, fragments HTMX et styles locaux non globaux | consomme le contrat HTTP figé par F02A | rendu + progressive enhancement + a11y | READY |
 | F03 | Voice lookup customer tool | Agent A | F01 | `internal/adapters/voice/**` | webhook/tool schema | known + unknown phone | READY |
 | F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | REVIEW — page servie sur `GET /app`, fragment `GET /app/today`, 11 tests, vérifiée en navigateur à 380 et 1280 px |
@@ -190,6 +190,13 @@ Next safe Agent A task while review runs: freeze F02A HTTP/domain contract.
 No F01 code will be changed silently after this handoff.
 ```
 
+## Coordination note — shared index race resolved, 2026-07-30
+
+Un chevauchement d'index Git a brièvement regroupé F01 et F04. Il a été résolu
+avant push en deux commits ciblés : `747dd30` pour F01 et `2848735` pour F04,
+suivis du handoff `969e423`. Le worktree est propre hors CLAIM F02A. Ne plus
+réécrire ces commits ; chaque agent vérifie désormais l'index juste avant commit.
+
 ## Handoff 2 — Agent B to Agent A, 2026-07-30 (after F04)
 
 ```
@@ -247,6 +254,84 @@ Tests lancés : go build, go vet, go test -race ./... tous verts, y compris tes
   paquets F01. Migrations vérifiées contre postgres:18.4-bookworm réel.
 ```
 
+## Coordination F02A → Agent B, 2026-07-30
+
+Contexte autonome : le contrat HTTP/domain F02A est gelé dans
+`docs/contracts/F02A-planning.md`. F02B peut être CLAIM sans attendre la fin de
+la review backend ; ses GET/vues restent chez Agent B et les trois POST restent
+chez Agent A. Ne pas ajouter `tenant_id` aux formulaires, routes ou DTO.
+
+Point timezone à ne pas deviner : `Day(ctx, time.Time)` reçoit un **instant** et
+le store le résout dans le timezone IANA persistant du tenant. Pour un filtre
+`day=YYYY-MM-DD`, ne pas utiliser directement `time.Parse(time.DateOnly, ...)`
+(minuit UTC peut être la veille en Martinique). Charger d'abord le timezone via
+un `Day` courant puis utiliser `time.ParseInLocation`, ou demander une mini-tâche
+de contrat si F02B veut un seam dédié.
+
+Le vrai `TodayProvider` planning est maintenant injecté depuis le DI root ;
+`FixtureToday` n'est plus utilisé en production. Sa suppression finale touche
+deux chemins toujours possédés par Agent B :
+`internal/adapters/handlers/dashboard_fixture.go` et le test
+`TestFixtureSatisfiesTheContract` dans `dashboard_test.go`. Demande à Agent B :
+supprimer ces deux éléments pendant sa prochaine intervention F04/F02B, ou
+écrire un handoff explicite autorisant Agent A à le faire. Aucun autre fichier
+dashboard/vue/CSS n'est demandé.
+
+## Open handoff — Agent A to Agent B, F02A review, 2026-07-30
+
+Contexte autonome pour review croisée sans historique préalable :
+
+```
+Feature: F02A Mini-planning atelier — backend
+From: Agent A (backend)
+To: Agent B (frontend/reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Contrat gelé avant code :
+  docs/contracts/F02A-planning.md
+
+Implémentation à reviewer :
+  docs/SCHEDULING.md
+  internal/core/appointment/**
+  internal/adapters/stores/postgres/appointment.go
+  internal/adapters/stores/postgres/appointment_test.go
+  internal/adapters/stores/postgres/migrations/00003_appointment.sql
+  internal/adapters/handlers/appointment*.go
+  internal/adapters/httpserver/handler.go + test (routes contractées seulement)
+  internal/di/** (wiring seulement)
+
+Garanties :
+  - tenant_id vient uniquement du context ; chaque SQL est tenant-scopé ;
+  - ouverture persistée obligatoire, aucun horaire inventé ;
+  - lock FOR UPDATE + recheck atomique au pic de capacité ;
+  - un seul succès concurrent sur le dernier emplacement ;
+  - réponse complète du premier write figée en jsonb et rejouée par clé ;
+  - FK composites jusque dans appointment_commands ;
+  - formulaires bornés, UUID/durée/texte validés, erreurs 401/404/409/422/503 ;
+  - vrais RDV adaptés vers F04 ; calls/tasks restent vides sans invention ;
+  - ouvertures/RDV traversant minuit correctement bornés au jour du tenant.
+
+Review indépendante : deux findings moyens corrigés (capacité >1 calculée au
+pic ; rejeu idempotent complet après reschedule), puis re-review PASS.
+
+Tests/validation :
+  TEST_DATABASE_DSN=postgres:18.4... go test -count=1 -race ./...
+  go vet ./...
+  go build ./...
+  docker build -t garage-f02a-test .
+  docker compose config --quiet avec variables explicites
+  git diff --check
+  Base PostgreSQL 18.4 vierge ; migrations et réouverture idempotente.
+
+Point ownership : le vrai provider est câblé, mais FixtureToday + son test sont
+encore présents et inutilisés. Ils sont dans dashboard* (owned Agent B). Merci
+de les supprimer ou d'autoriser explicitement Agent A dans WORKBOARD.
+
+F02B est débloqué par le contrat. Attention au point time.Time/timezone écrit
+dans la coordination juste au-dessus ; ne jamais parser DateOnly en UTC puis
+l'utiliser directement comme jour civil Martinique.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -254,12 +339,12 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | Agent A | F00 MERGED | wiring PostgreSQL |
+| DI root | - | - | wiring F02A terminé ; prochain owner doit CLAIM avant édition |
 | DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
 | `compose.yml` | Agent A | F00 MERGED | service PostgreSQL 18 |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
 | global layout/tokens | Agent B | F06 MERGED | global UI contract |
-| provider interfaces | - | - | cross-feature contract |
+| provider interfaces | - | - | `SchedulingProvider` F02A gelé ; mini-tâche obligatoire avant changement |
 
 ## Handoff template
 ```
