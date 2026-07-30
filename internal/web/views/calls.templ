@@ -12,7 +12,7 @@ templ CallsPage(history CallHistory) {
 		<div class="page-header">
 			<h1>Appels</h1>
 			<p class="page-subtitle">
-				{ frenchDate(history.Day) }
+				{ FrenchDate(history.Day) }
 				if history.Timezone != "" {
 					{ " · " + history.Timezone }
 				}
@@ -39,7 +39,7 @@ templ CallsPage(history CallHistory) {
 			<p class="notice" role="status">{ notice }</p>
 		}
 		if !history.Degraded {
-			@panel("Appels du jour", "panel-call-history", len(history.Calls), "appels") {
+			@Panel("Appels du jour", "panel-call-history", len(history.Calls), "appels") {
 				for _, call := range history.Calls {
 					<li class="item">
 						<time class="item-time" datetime={ call.At.Format(time.RFC3339) }>
@@ -51,9 +51,9 @@ templ CallsPage(history CallHistory) {
 								<span class="visually-hidden">{ " — appel de " + call.At.Format("15:04") }</span>
 							</a>
 						</span>
-						<span class={ "badge", badgeTone(call.Outcome) }>{ statusLabel(call.Outcome) }</span>
+						<span class={ "badge", BadgeTone(call.Outcome) }>{ StatusLabel(call.Outcome) }</span>
 						<span class="item-detail">
-							{ formatDuration(call.Duration) }
+							{ FormatDuration(call.Duration) }
 							if call.Summary != "" {
 								{ " — " + call.Summary }
 							}
@@ -72,8 +72,8 @@ templ CallPage(call CallDetail) {
 		<div class="page-header">
 			<h1>{ callerTitle(call.CallSummary) }</h1>
 			<p class="page-subtitle">
-				{ frenchDate(call.At) + " à " + call.At.Format("15:04") }
-				{ " · " + formatDuration(call.Duration) }
+				{ FrenchDate(call.At) + " à " + call.At.Format("15:04") }
+				{ " · " + FormatDuration(call.Duration) }
 			</p>
 			<a class="btn btn-secondary page-action" href={ templ.SafeURL("/app/calls?day=" + callDayParam(call.At)) }>
 				Retour aux appels
@@ -82,15 +82,15 @@ templ CallPage(call CallDetail) {
 		<dl class="call-facts">
 			<div>
 				<dt>Numéro</dt>
-				<dd>{ orDash(call.Phone) }</dd>
+				<dd>{ OrDash(call.Phone) }</dd>
 			</div>
 			<div>
 				<dt>Résultat</dt>
-				<dd><span class={ "badge", badgeTone(call.Outcome) }>{ statusLabel(call.Outcome) }</span></dd>
+				<dd><span class={ "badge", BadgeTone(call.Outcome) }>{ StatusLabel(call.Outcome) }</span></dd>
 			</div>
 			<div>
 				<dt>Statut fournisseur</dt>
-				<dd>{ orDash(call.Status) }</dd>
+				<dd>{ OrDash(call.Status) }</dd>
 			</div>
 		</dl>
 		<section class="panel call-summary" aria-labelledby="call-summary-title">

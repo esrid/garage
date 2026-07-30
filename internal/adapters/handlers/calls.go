@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/esrid/garage/internal/core/domain"
+	"github.com/esrid/garage/internal/web/page"
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -43,7 +44,7 @@ func (h *Calls) Register(mux *http.ServeMux) {
 func (h *Calls) Day(w http.ResponseWriter, r *http.Request) {
 	history, notices := h.day(r)
 	history.Notices = append(history.Notices, notices...)
-	renderPage(w, r, http.StatusOK, views.CallsPage(history))
+	page.Render(w, r, http.StatusOK, views.CallsPage(history))
 }
 
 // One serves GET /app/calls/{id}.
@@ -54,7 +55,7 @@ func (h *Calls) One(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &notFound) {
 			// One page for an unknown id and for another tenant's call: telling the two
 			// apart is how an id becomes an existence oracle.
-			renderPage(w, r, http.StatusNotFound, views.CallProblemPage(
+			page.Render(w, r, http.StatusNotFound, views.CallProblemPage(
 				"Appel introuvable",
 				"Cet appel n'existe pas, ou n'appartient pas à cet atelier.",
 			))
@@ -63,13 +64,13 @@ func (h *Calls) One(w http.ResponseWriter, r *http.Request) {
 		// Not "introuvable": we could not look. Saying the call does not exist would
 		// be inventing a fact out of an outage.
 		slog.ErrorContext(r.Context(), "calls: call unavailable", "err", err)
-		renderPage(w, r, http.StatusOK, views.CallProblemPage(
+		page.Render(w, r, http.StatusOK, views.CallProblemPage(
 			"Appel indisponible",
 			"Cet appel n'a pas pu être lu. Réessayez dans un instant.",
 		))
 		return
 	}
-	renderPage(w, r, http.StatusOK, views.CallPage(call))
+	page.Render(w, r, http.StatusOK, views.CallPage(call))
 }
 
 // day resolves the requested civil date and reads it.
@@ -84,12 +85,12 @@ func (h *Calls) day(r *http.Request) (views.CallHistory, []string) {
 	if err != nil {
 		return h.unavailable(ctx, err)
 	}
-	requested, dayErr := requestedDay(r.URL.Query().Get("day"), history.Day.Location())
+	requested, dayErr := page.RequestedDay(r.URL.Query().Get("day"), history.Day.Location())
 	switch {
-	case errors.Is(dayErr, errNoDayParameter):
+	case errors.Is(dayErr, page.ErrNoDayParameter):
 		return history, nil
 	case dayErr != nil:
-		return history, []string{dayUnreadableNotice}
+		return history, []string{page.DayUnreadableNotice}
 	}
 	requestedHistory, err := h.reader.Calls(ctx, requested)
 	if err != nil {

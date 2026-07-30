@@ -53,7 +53,7 @@ func CallsPage(history CallHistory) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(frenchDate(history.Day))
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(FrenchDate(history.Day))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 15, Col: 29}
 			}
@@ -225,7 +225,7 @@ func CallsPage(history CallHistory) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var15 = []any{"badge", badgeTone(call.Outcome)}
+						var templ_7745c5c3_Var15 = []any{"badge", BadgeTone(call.Outcome)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var15...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -248,7 +248,7 @@ func CallsPage(history CallHistory) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var17 string
-						templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(statusLabel(call.Outcome))
+						templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(StatusLabel(call.Outcome))
 						if templ_7745c5c3_Err != nil {
 							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 54, Col: 82}
 						}
@@ -261,7 +261,7 @@ func CallsPage(history CallHistory) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var18 string
-						templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(formatDuration(call.Duration))
+						templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(FormatDuration(call.Duration))
 						if templ_7745c5c3_Err != nil {
 							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 56, Col: 38}
 						}
@@ -291,7 +291,7 @@ func CallsPage(history CallHistory) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = panel("Appels du jour", "panel-call-history", len(history.Calls), "appels").Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = Panel("Appels du jour", "panel-call-history", len(history.Calls), "appels").Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -359,7 +359,7 @@ func CallPage(call CallDetail) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var23 string
-			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(frenchDate(call.At) + " à " + call.At.Format("15:04"))
+			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(FrenchDate(call.At) + " à " + call.At.Format("15:04"))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 75, Col: 60}
 			}
@@ -372,7 +372,7 @@ func CallPage(call CallDetail) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var24 string
-			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + formatDuration(call.Duration))
+			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + FormatDuration(call.Duration))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 76, Col: 44}
 			}
@@ -398,7 +398,7 @@ func CallPage(call CallDetail) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var26 string
-			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(orDash(call.Phone))
+			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(OrDash(call.Phone))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 85, Col: 28}
 			}
@@ -410,7 +410,7 @@ func CallPage(call CallDetail) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var27 = []any{"badge", badgeTone(call.Outcome)}
+			var templ_7745c5c3_Var27 = []any{"badge", BadgeTone(call.Outcome)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -433,7 +433,7 @@ func CallPage(call CallDetail) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var29 string
-			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(statusLabel(call.Outcome))
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(StatusLabel(call.Outcome))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 89, Col: 84}
 			}
@@ -446,7 +446,7 @@ func CallPage(call CallDetail) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var30 string
-			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(orDash(call.Status))
+			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(OrDash(call.Status))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/calls.templ`, Line: 93, Col: 29}
 			}

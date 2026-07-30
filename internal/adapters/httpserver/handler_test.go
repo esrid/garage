@@ -14,6 +14,7 @@ import (
 	coreauth "github.com/esrid/garage/internal/core/auth"
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/core/tenant"
+	"github.com/esrid/garage/internal/features/dashboard"
 )
 
 type readinessStub struct {
@@ -36,7 +37,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 		Readiness:        readiness,
 		Sessions:         sessionVerifierStub{},
 		Authentication:   handlers.NewAuthentication(nil),
-		Dashboard:        handlers.NewDashboard(nil),
+		Dashboard:        dashboard.NewDashboard(nil),
 		Calls:            handlers.NewCalls(nil),
 		Planning:         handlers.NewPlanning(nil),
 		Appointments:     handlers.NewAppointmentMutations(nil),

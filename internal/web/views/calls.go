@@ -50,7 +50,7 @@ type CallTurn struct {
 // callerTitle names a call row: the customer when known, the number otherwise.
 // Reuses the F04 rule so the dashboard and the history never disagree.
 func callerTitle(call CallSummary) string {
-	return contactLabel(call.CustomerName, call.Phone)
+	return ContactLabel(call.CustomerName, call.Phone)
 }
 
 // turnRole is the speaker label. Provider roles are free strings: an unknown one

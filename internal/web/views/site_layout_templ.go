@@ -183,12 +183,12 @@ func SiteLayout(meta SiteMeta, body templ.Component) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, link := range SiteNav {
-			templ_7745c5c3_Err = navLink(link.Path, link.Label, meta.Path).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = NavLink(link.Path, link.Label, meta.Path).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = navLink("/login", "Connexion", meta.Path).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = NavLink("/login", "Connexion", meta.Path).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

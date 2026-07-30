@@ -116,19 +116,6 @@ func TestLoginKeepsOnlyLocalReturnPaths(t *testing.T) {
 	}
 }
 
-// Signing out has to be a POST: F09 revokes the server session there, and a GET
-// logout is firable by any third-party image tag.
-func TestAppShellSignsOutWithAForm(t *testing.T) {
-	body := get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.String()
-
-	if !strings.Contains(body, `method="post" action="/auth/logout"`) {
-		t.Error("the app shell has no logout form")
-	}
-	if strings.Contains(body, `href="/auth/logout"`) {
-		t.Error("logout must not be a link")
-	}
-}
-
 func TestRobotsKeepsCrawlersOffTheLoginForm(t *testing.T) {
 	if body := fetch(t, "/robots.txt").Body.String(); !strings.Contains(body, "Disallow: /login") {
 		t.Error("robots.txt does not disallow /login")

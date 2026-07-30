@@ -54,7 +54,7 @@ func PlanningPage(planning Planning) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(frenchDate(planning.Day))
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(FrenchDate(planning.Day))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 16, Col: 30}
 			}
@@ -384,7 +384,7 @@ func planningOpenings(planning Planning) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = panel("Ouverture", "panel-openings", len(planning.Openings), "plages").Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Panel("Ouverture", "panel-openings", len(planning.Openings), "plages").Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -438,7 +438,7 @@ func openingForm(planning Planning) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var22 string
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(" une ouverture le " + frenchDate(planning.Day))
+		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(" une ouverture le " + FrenchDate(planning.Day))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 145, Col: 83}
 		}
@@ -663,7 +663,7 @@ func planningAppointments(planning Planning) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var33 string
-				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(orDash(item.CustomerName))
+				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(OrDash(item.CustomerName))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 215, Col: 59}
 				}
@@ -675,7 +675,7 @@ func planningAppointments(planning Planning) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var34 = []any{"badge", badgeTone(item.Status)}
+				var templ_7745c5c3_Var34 = []any{"badge", BadgeTone(item.Status)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var34...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -698,7 +698,7 @@ func planningAppointments(planning Planning) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var36 string
-				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(statusLabel(item.Status))
+				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(StatusLabel(item.Status))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 216, Col: 81}
 				}
@@ -737,7 +737,7 @@ func planningAppointments(planning Planning) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var39 string
-				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + orDash(item.Vehicle))
+				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + OrDash(item.Vehicle))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 220, Col: 39}
 				}
@@ -778,7 +778,7 @@ func planningAppointments(planning Planning) templ.Component {
 					}
 				}
 				var templ_7745c5c3_Var42 string
-				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + orDash(item.Service))
+				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + OrDash(item.Service))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/views/planning.templ`, Line: 225, Col: 39}
 				}

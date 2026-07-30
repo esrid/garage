@@ -8,6 +8,7 @@ import (
 	"github.com/esrid/garage/assets"
 	"github.com/esrid/garage/internal/adapters/handlers"
 	"github.com/esrid/garage/internal/adapters/voice"
+	"github.com/esrid/garage/internal/features/dashboard"
 )
 
 type readinessChecker interface {
@@ -28,7 +29,7 @@ type Deps struct {
 	Authentication *handlers.Authentication
 
 	// Behind the staff session.
-	Dashboard    *handlers.Dashboard
+	Dashboard    *dashboard.Dashboard
 	Calls        *handlers.Calls
 	Planning     *handlers.Planning
 	Appointments *handlers.AppointmentMutations

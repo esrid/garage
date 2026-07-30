@@ -22,6 +22,7 @@ import (
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
+	"github.com/esrid/garage/internal/features/dashboard"
 )
 
 type App struct {
@@ -50,11 +51,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	callHistoryProvider := handlers.NewCallHistoryProvider(conversation.NewHistoryService(database), followUpReads)
 	// The day view is composed one domain at a time: appointments, then the calls
 	// F14 persisted, then the follow-ups F08 recorded.
-	dashboardProvider := handlers.NewTodayWithFollowUpsProvider(
-		handlers.NewTodayWithCallsProvider(handlers.NewAppointmentTodayProvider(scheduling), callHistoryProvider),
+	dashboardProvider := dashboard.NewTodayWithFollowUpsProvider(
+		dashboard.NewTodayWithCallsProvider(dashboard.NewAppointmentTodayProvider(scheduling), callHistoryProvider),
 		followUpReads,
 	)
-	dashboard := handlers.NewDashboard(dashboardProvider)
+	dashboard := dashboard.NewDashboard(dashboardProvider)
 	calls := handlers.NewCalls(callHistoryProvider)
 	planning := handlers.NewPlanning(scheduling)
 	appointmentMutations := handlers.NewAppointmentMutations(scheduling)

@@ -1,4 +1,4 @@
-package handlers
+package page
 
 import (
 	"errors"
@@ -9,14 +9,14 @@ import (
 	"github.com/a-h/templ"
 )
 
-// errNoDayParameter says the request carried no ?day=, so the caller keeps the
+// ErrNoDayParameter says the request carried no ?day=, so the caller keeps the
 // day the backend already returned.
-var errNoDayParameter = errors.New("handlers: no day parameter")
+var ErrNoDayParameter = errors.New("handlers: no day parameter")
 
-// dayUnreadableNotice is what every day-scoped page says about a date it could
+// DayUnreadableNotice is what every day-scoped page says about a date it could
 // not read. One sentence, so two pages cannot phrase the same problem
 // differently.
-const dayUnreadableNotice = "Date illisible : voici la journée en cours."
+const DayUnreadableNotice = "Date illisible : voici la journée en cours."
 
 // requestedDay turns a ?day=YYYY-MM-DD parameter into the instant to ask the
 // backend for.
@@ -28,10 +28,10 @@ const dayUnreadableNotice = "Date illisible : voici la journée en cours."
 //
 // The instant aims at midday: the backend resolves a day around it, and midnight
 // sits exactly on the boundary a timezone shift moves.
-func requestedDay(raw string, location *time.Location) (time.Time, error) {
+func RequestedDay(raw string, location *time.Location) (time.Time, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
-		return time.Time{}, errNoDayParameter
+		return time.Time{}, ErrNoDayParameter
 	}
 	parsed, err := time.ParseInLocation(time.DateOnly, value, location)
 	if err != nil {
@@ -45,7 +45,7 @@ func requestedDay(raw string, location *time.Location) (time.Time, error) {
 //
 // The dashboard, the planning and the call history each had their own copy of
 // these three lines; the guarantee is easier to keep when it exists once.
-func renderPage(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
+func Render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
 	w.Header().Set("Cache-Control", "no-store")
 	templ.Handler(component, templ.WithStatus(status)).ServeHTTP(w, r)
 }

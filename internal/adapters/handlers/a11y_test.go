@@ -1,6 +1,13 @@
 package handlers
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"time"
+
+	"github.com/esrid/garage/internal/features/dashboard"
+	"github.com/esrid/garage/internal/web/views"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,11 +20,35 @@ import (
 // What they cannot replace: a real screen reader and a real Tab key. Those stay
 // a manual pass, noted in WORKBOARD.md.
 
+// dashboardPage renders the day view through the dashboard feature's own API.
+// This suite asserts a guarantee that spans features, so it reaches them the way
+// the router does - through what they export - not through their test doubles.
+func dashboardPage(t *testing.T) string {
+	t.Helper()
+	provider := dashboardStub{data: views.Today{
+		Day:          time.Now(),
+		Calls:        []views.Call{{ID: "c1", At: time.Now(), Phone: "+596696000001", Outcome: "success"}},
+		Appointments: []views.Appointment{{ID: "a1", Start: time.Now(), CustomerName: "Marie Lubin", Status: "confirmed"}},
+		Tasks:        []views.Task{{ID: "t1", CreatedAt: time.Now(), Kind: "quote", Phone: "+596696000002", Note: "Devis"}},
+	}}
+	response := httptest.NewRecorder()
+	dashboard.NewDashboard(provider).Page(response, httptest.NewRequest(http.MethodGet, "/app", nil))
+	return response.Body.String()
+}
+
+type dashboardStub struct {
+	data views.Today
+}
+
+func (s dashboardStub) Today(context.Context, time.Time) (views.Today, error) {
+	return s.data, nil
+}
+
 // a11yPages is every page under test, rendered.
 func a11yPages(t *testing.T) map[string]string {
 	t.Helper()
 	return map[string]string{
-		"/app":                         get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.String(),
+		"/app":                         dashboardPage(t),
 		"/app/planning":                getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.String(),
 		"/app/planning?error=conflict": getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning?error=conflict").Body.String(),
 		"/":                            fetch(t, "/").Body.String(),

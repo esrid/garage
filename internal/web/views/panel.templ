@@ -1,0 +1,29 @@
+package views
+
+import "strconv"
+
+// Panel wraps the three lists. They differ in content, not in shape, so they
+// share one component instead of three lookalikes.
+//
+// The count carries a visually-hidden noun: "Appels 3" alone is ambiguous to a
+// screen reader.
+templ Panel(title string, id string, count int, countLabel string) {
+	<section class="panel" aria-labelledby={ id }>
+		<div class="panel-header">
+			<h2 class="panel-title" id={ id }>{ title }</h2>
+			<span class="panel-count">
+				{ strconv.Itoa(count) }
+				<span class="visually-hidden">{ " " + countLabel }</span>
+			</span>
+		</div>
+		<div class="panel-body">
+			if count == 0 {
+				<p class="empty">Rien à afficher aujourd'hui.</p>
+			} else {
+				<ul class="item-list">
+					{ children... }
+				</ul>
+			}
+		</div>
+	</section>
+}

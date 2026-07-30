@@ -12,6 +12,7 @@ import (
 
 	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/domain"
+	"github.com/esrid/garage/internal/web/page"
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -57,14 +58,14 @@ func (h *Planning) Register(mux *http.ServeMux) {
 // Page serves GET /app/planning.
 func (h *Planning) Page(w http.ResponseWriter, r *http.Request) {
 	data, status := h.load(r)
-	renderPage(w, r, status, views.PlanningPage(data))
+	page.Render(w, r, status, views.PlanningPage(data))
 }
 
 // Fragment serves GET /app/planning/day: the day block alone, for the duration
 // filter's htmx swap.
 func (h *Planning) Fragment(w http.ResponseWriter, r *http.Request) {
 	data, status := h.load(r)
-	renderPage(w, r, status, views.PlanningDay(data))
+	page.Render(w, r, status, views.PlanningDay(data))
 }
 
 // load builds the view data and the status to answer with.
@@ -92,11 +93,11 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 	if err != nil {
 		return h.unavailable(ctx, err, minutes, alert)
 	}
-	switch requested, dayErr := requestedDay(query.Get("day"), day.Date.Location()); {
-	case errors.Is(dayErr, errNoDayParameter):
+	switch requested, dayErr := page.RequestedDay(query.Get("day"), day.Date.Location()); {
+	case errors.Is(dayErr, page.ErrNoDayParameter):
 		// Nothing asked for: the current day is already loaded.
 	case dayErr != nil:
-		notices = append(notices, dayUnreadableNotice)
+		notices = append(notices, page.DayUnreadableNotice)
 	default:
 		if day, err = h.reader.Day(ctx, requested); err != nil {
 			return h.unavailable(ctx, err, minutes, alert)

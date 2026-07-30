@@ -53,12 +53,12 @@ type Task struct {
 	Note         string
 }
 
-// badgeTone maps a backend status to a CSS tone. Tones, not domain vocabulary,
+// BadgeTone maps a backend status to a CSS tone. Tones, not domain vocabulary,
 // so a new status upstream needs no CSS change.
 //
 // An unrecognised status returns the neutral tone and keeps its raw text: an
 // unknown value is a visible integration bug, not something to paper over.
-func badgeTone(status string) string {
+func BadgeTone(status string) string {
 	switch status {
 	case "booked", "confirmed", "done", "success":
 		return "badge-success"
@@ -98,26 +98,26 @@ var statusLabels = map[string]string{
 	"unknown": "Indéterminé",
 }
 
-func statusLabel(status string) string {
+func StatusLabel(status string) string {
 	if label, ok := statusLabels[status]; ok {
 		return label
 	}
 	return status
 }
 
-// orDash renders missing data as an em dash. Prices, plates and statuses are
+// OrDash renders missing data as an em dash. Prices, plates and statuses are
 // never invented to fill a gap (PRD 7.1).
-func orDash(value string) string {
+func OrDash(value string) string {
 	if strings.TrimSpace(value) == "" {
 		return "—"
 	}
 	return value
 }
 
-// contactLabel names the person a row is about: the customer name when known,
+// ContactLabel names the person a row is about: the customer name when known,
 // otherwise the number they called from. A row titled "—" while we hold their
 // number is useless to the person at the desk, so both calls and tasks use this.
-func contactLabel(name, phone string) string {
+func ContactLabel(name, phone string) string {
 	if strings.TrimSpace(name) != "" {
 		return name
 	}
@@ -127,15 +127,7 @@ func contactLabel(name, phone string) string {
 	return "Numéro inconnu"
 }
 
-func callerLabel(call Call) string {
-	return contactLabel(call.CustomerName, call.Phone)
-}
-
-func taskLabel(task Task) string {
-	return contactLabel(task.CustomerName, task.Phone)
-}
-
-func formatDuration(d time.Duration) string {
+func FormatDuration(d time.Duration) string {
 	if d <= 0 {
 		return "—"
 	}
@@ -144,29 +136,6 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%d s", seconds)
 	}
 	return fmt.Sprintf("%d min %02d s", seconds/60, seconds%60)
-}
-
-func callDetail(call Call) string {
-	return joinDetail(orDash(call.Subject), formatDuration(call.Duration))
-}
-
-// The phone already titles the row when the name is unknown, so the detail line
-// carries the note alone instead of repeating the number.
-func taskDetail(task Task) string {
-	return joinDetail(strings.TrimSpace(task.Note))
-}
-
-func joinDetail(parts ...string) string {
-	kept := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if part != "" && part != "—" {
-			kept = append(kept, part)
-		}
-	}
-	if len(kept) == 0 {
-		return "—"
-	}
-	return strings.Join(kept, " — ")
 }
 
 var (
@@ -178,7 +147,7 @@ var (
 	}
 )
 
-func frenchDate(day time.Time) string {
+func FrenchDate(day time.Time) string {
 	return fmt.Sprintf("%s %d %s %d",
 		frenchDays[int(day.Weekday())], day.Day(), frenchMonths[int(day.Month())-1], day.Year())
 }

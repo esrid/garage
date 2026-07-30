@@ -1,4 +1,4 @@
-package handlers
+package dashboard
 
 import (
 	"context"
@@ -10,6 +10,12 @@ import (
 
 // TodayWithCallsProvider adds persisted calls to the existing appointment day
 // without making either domain depend on presentation DTOs.
+// CallHistoryReader is the slice of the call history this composition needs:
+// the day's calls, already mapped into the shared view DTOs.
+type CallHistoryReader interface {
+	Calls(ctx context.Context, day time.Time) (views.CallHistory, error)
+}
+
 type TodayWithCallsProvider struct {
 	base  TodayProvider
 	calls CallHistoryReader

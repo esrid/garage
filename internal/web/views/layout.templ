@@ -30,9 +30,9 @@ templ Layout(title string, currentPath string) {
 			<header class="app-header">
 				<a class="app-brand" href="/app">Atelier IA</a>
 				<nav class="app-nav" aria-label="Navigation principale">
-					@navLink("/app", "Aujourd'hui", currentPath)
-					@navLink("/app/planning", "Planning", currentPath)
-					@navLink("/app/calls", "Appels", currentPath)
+					@NavLink("/app", "Aujourd'hui", currentPath)
+					@NavLink("/app/planning", "Planning", currentPath)
+					@NavLink("/app/calls", "Appels", currentPath)
 				</nav>
 				// A form, not a link: F09 revokes the session on POST /auth/logout, and
 				// a GET logout can be fired by any third-party image tag.
@@ -47,7 +47,7 @@ templ Layout(title string, currentPath string) {
 	</html>
 }
 
-templ navLink(href string, label string, currentPath string) {
+templ NavLink(href string, label string, currentPath string) {
 	if href == currentPath {
 		<a class="app-nav-link" href={ templ.SafeURL(href) } aria-current="page">{ label }</a>
 	} else {

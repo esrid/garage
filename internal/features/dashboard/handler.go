@@ -1,5 +1,5 @@
 // Package handlers holds the HTTP handlers for the application pages.
-package handlers
+package dashboard
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/esrid/garage/internal/web/page"
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -42,13 +43,13 @@ func (d *Dashboard) Register(mux *http.ServeMux) {
 // Page serves GET /app.
 func (d *Dashboard) Page(w http.ResponseWriter, r *http.Request) {
 	data, degraded := d.today(r)
-	renderPage(w, r, http.StatusOK, views.DashboardPage(data, degraded))
+	page.Render(w, r, http.StatusOK, DashboardPage(data, degraded))
 }
 
 // Fragment serves GET /app/today: the panels alone, for an htmx refresh.
 func (d *Dashboard) Fragment(w http.ResponseWriter, r *http.Request) {
 	data, degraded := d.today(r)
-	renderPage(w, r, http.StatusOK, views.TodayPanels(data, degraded))
+	page.Render(w, r, http.StatusOK, TodayPanels(data, degraded))
 }
 
 // today never returns an error: a failing provider degrades the page instead of

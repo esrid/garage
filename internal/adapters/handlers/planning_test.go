@@ -14,7 +14,6 @@ import (
 
 	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/domain"
-	"github.com/esrid/garage/internal/web/views"
 )
 
 // Martinique as a fixed zone rather than time.LoadLocation: the tests must not
@@ -401,7 +400,7 @@ func TestWritePreviews(t *testing.T) {
 	}
 	pages := map[string][]byte{
 		"planning.html":  getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.Bytes(),
-		"dashboard.html": get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.Bytes(),
+		"dashboard.html": []byte(dashboardPage(t)),
 		// The public site needs no dependency, so it dumps straight from its mux.
 		"home.html":    fetch(t, "/").Body.Bytes(),
 		"pricing.html": fetch(t, "/tarifs").Body.Bytes(),
@@ -410,34 +409,6 @@ func TestWritePreviews(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, name), body, 0o600); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
-	}
-}
-
-// dashboardPreviewData fills the three dashboard panels. Calls and tasks have no
-// backend yet, so this is the only way to look at those panels rendered.
-func dashboardPreviewData() views.Today {
-	return views.Today{
-		Day: planningNow,
-		Calls: []views.Call{
-			{
-				ID: "call-1", At: at(8, 12), Duration: 4*time.Minute + 20*time.Second,
-				CustomerName: "Marie Lubin", Phone: "0596000001",
-				Subject: "Vidange + révision", Outcome: "booked",
-			},
-			{
-				ID: "call-2", At: at(9, 3), Duration: 2 * time.Minute,
-				Phone: "0696000002", Subject: "Devis embrayage", Outcome: "quote",
-			},
-		},
-		Appointments: []views.Appointment{{
-			ID: "rdv-1", Start: at(9, 0), End: at(10, 0),
-			CustomerName: "Marie Lubin", Vehicle: "Clio IV", Plate: "AB-123-CD",
-			Service: "Vidange", Status: "confirmed",
-		}},
-		Tasks: []views.Task{{
-			ID: "task-1", CreatedAt: at(9, 5), Kind: "quote",
-			Phone: "0696000002", Note: "Rappeler pour le devis embrayage",
-		}},
 	}
 }
 

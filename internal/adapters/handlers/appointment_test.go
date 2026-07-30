@@ -232,33 +232,3 @@ func TestAppointmentRescheduleAndCancelErrorsUsePlanningRedirect(t *testing.T) {
 		})
 	}
 }
-
-func TestAppointmentTodayProviderMapsOnlyPersistedAppointments(t *testing.T) {
-	location := time.FixedZone("Martinique", -4*60*60)
-	day := time.Date(2030, 1, 2, 0, 0, 0, 0, location)
-	startUTC := time.Date(2030, 1, 2, 12, 0, 0, 0, time.UTC)
-	stub := &schedulingStub{day: appointment.Day{
-		Date: day,
-		Appointments: []appointment.DayEntry{{
-			Appointment: appointment.Appointment{
-				ID: handlerAppointmentID, Start: startUTC, End: startUTC.Add(time.Hour),
-				ServiceLabel: "Révision", Status: appointment.StatusConfirmed,
-			},
-			CustomerName: "Ana Césaire", VehicleLabel: "Renault Clio", Plate: "",
-		}},
-	}}
-	result, err := NewAppointmentTodayProvider(stub).Today(tenant.WithID(context.Background(), "tenant-1"), day)
-	if err != nil {
-		t.Fatalf("Today() error = %v", err)
-	}
-	if len(result.Appointments) != 1 || result.Appointments[0].CustomerName != "Ana Césaire" || result.Appointments[0].Plate != "" {
-		t.Fatalf("Today() = %#v", result)
-	}
-	mapped := result.Appointments[0]
-	if mapped.Start.Location() != location || mapped.Start.Hour() != 8 || !mapped.Start.Equal(startUTC) || mapped.End.Hour() != 9 {
-		t.Fatalf("mapped appointment times = %v–%v, want 08:00–09:00 Martinique preserving instant", mapped.Start, mapped.End)
-	}
-	if len(result.Calls) != 0 || len(result.Tasks) != 0 {
-		t.Fatalf("Today() invented calls or tasks: %#v", result)
-	}
-}

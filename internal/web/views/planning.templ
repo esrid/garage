@@ -13,7 +13,7 @@ templ PlanningPage(planning Planning) {
 		<div class="page-header">
 			<h1>Planning</h1>
 			<p class="page-subtitle">
-				{ frenchDate(planning.Day) }
+				{ FrenchDate(planning.Day) }
 				if planning.Timezone != "" {
 					{ " · " + planning.Timezone }
 				}
@@ -105,7 +105,7 @@ templ PlanningDay(planning Planning) {
 // one. Without a stored opening the backend offers no slot at all, by contract,
 // so this form is what makes a fresh installation usable.
 templ planningOpenings(planning Planning) {
-	@panel("Ouverture", "panel-openings", len(planning.Openings), "plages") {
+	@Panel("Ouverture", "panel-openings", len(planning.Openings), "plages") {
 		for _, opening := range planning.Openings {
 			<li class="item">
 				// No separate time column here: the title already is the range, and
@@ -142,7 +142,7 @@ templ openingForm(planning Planning) {
 			</div>
 			<button class="btn btn-secondary" type="submit">
 				Ajouter
-				<span class="visually-hidden">{ " une ouverture le " + frenchDate(planning.Day) }</span>
+				<span class="visually-hidden">{ " une ouverture le " + FrenchDate(planning.Day) }</span>
 			</button>
 		</form>
 		<p class="field-hint">
@@ -212,17 +212,17 @@ templ planningAppointments(planning Planning) {
 							<time class="item-time" datetime={ item.Start.Format(time.RFC3339) }>
 								{ hourLabel(item.Start) }
 							</time>
-							<span class="item-title">{ orDash(item.CustomerName) }</span>
-							<span class={ "badge", badgeTone(item.Status) }>{ statusLabel(item.Status) }</span>
+							<span class="item-title">{ OrDash(item.CustomerName) }</span>
+							<span class={ "badge", BadgeTone(item.Status) }>{ StatusLabel(item.Status) }</span>
 							<span class="item-detail">
 								{ rangeLabel(item.Start, item.End) }
 								{ " · " + minutesLabel(appointmentMinutes(item)) }
-								{ " · " + orDash(item.Vehicle) }
+								{ " · " + OrDash(item.Vehicle) }
 								if item.Plate != "" {
 									{ " · " }
 									<span class="item-plate">{ item.Plate }</span>
 								}
-								{ " · " + orDash(item.Service) }
+								{ " · " + OrDash(item.Service) }
 							</span>
 							if planningActionable(item.Status) {
 								@planningRowActions(planning, item)

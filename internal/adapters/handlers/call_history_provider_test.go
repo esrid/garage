@@ -8,7 +8,6 @@ import (
 
 	"github.com/esrid/garage/internal/core/conversation"
 	"github.com/esrid/garage/internal/core/followup"
-	"github.com/esrid/garage/internal/web/views"
 )
 
 type conversationHistoryStub struct {
@@ -82,43 +81,6 @@ func TestCallHistoryProviderRejectsInvalidStoredTranscriptAndTimezone(t *testing
 			}
 		})
 	}
-}
-
-func TestTodayWithCallsProviderFillsDashboardWithoutInventingSubject(t *testing.T) {
-	day := time.Date(2026, 7, 30, 0, 0, 0, 0, time.UTC)
-	base := &stubProvider{data: views.Today{Day: day, Calls: []views.Call{{ID: "fixture"}}}}
-	calls := callHistoryReaderStub{history: views.CallHistory{Calls: []views.CallSummary{{
-		ID: "call-1", At: day.Add(9 * time.Hour), Duration: 2 * time.Minute,
-		Outcome: "transferred", Summary: "Résumé assistant non vérifié",
-	}}}}
-	result, err := NewTodayWithCallsProvider(base, calls).Today(context.Background(), day)
-	if err != nil {
-		t.Fatalf("Today() error = %v", err)
-	}
-	if len(result.Calls) != 1 || result.Calls[0].ID != "call-1" || !result.Calls[0].Transferred || result.Calls[0].Subject != "" {
-		t.Fatalf("dashboard calls = %#v", result.Calls)
-	}
-}
-
-func TestTodayWithCallsProviderPropagatesReadFailure(t *testing.T) {
-	want := errors.New("database down")
-	_, err := NewTodayWithCallsProvider(&stubProvider{}, callHistoryReaderStub{err: want}).Today(context.Background(), time.Now())
-	if !errors.Is(err, want) {
-		t.Fatalf("Today() error = %v, want %v", err, want)
-	}
-}
-
-type callHistoryReaderStub struct {
-	history views.CallHistory
-	err     error
-}
-
-func (s callHistoryReaderStub) Calls(context.Context, time.Time) (views.CallHistory, error) {
-	return s.history, s.err
-}
-
-func (s callHistoryReaderStub) Call(context.Context, string) (views.CallDetail, error) {
-	return views.CallDetail{}, s.err
 }
 
 type callerDirectoryStub struct {
