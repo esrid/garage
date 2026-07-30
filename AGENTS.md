@@ -39,35 +39,40 @@ Avant d'implémenter un comportement UI :
 6. seulement ensuite envisager une dépendance.
 
 ## Architecture
-Monolithe modulaire, découpé par feature. Pas de Ports & Adapters cérémoniel partout.
+Monolithe modulaire **organisé par capacité métier**, jamais par couche
+technique. La doctrine complète, ses quinze règles et sa checklist sont dans
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) : la lire avant d'ajouter un
+fichier.
 
-### Package par feature
-Une feature possède son handler, ses routes, ses gabarits et ses tests :
+Le résumé qui doit tenir en tête :
 
 ```
-internal/features/<nom>/
-    handler.go      le point d'entrée HTTP
-    routes.go       ou Register(mux) sur le handler
-    page.templ      ses gabarits
-    *_test.go       ses tests
+internal/
+    appointment/  customer/  vehicle/  conversation/
+    followup/     identity/  tenant/   dashboard/  site/
+        model.go service.go repository.go postgres.go
+        http.go voice.go view.go page.templ *_test.go
+    platform/     postgres, httpserver, voice, config, sessions, logging
+    app/          composition et routes
 ```
 
-Le routeur racine ne nomme aucune URL de l'application : il compose les
-frontières de confiance (sondes, public, session staff, outils voix, webhooks) et
-chaque feature enregistre ses propres motifs. Ajouter une page est une ligne dans
-la feature qui y répond.
+- **Une capacité possède tout ce qui la concerne.** Devant un doute entre
+  plusieurs répertoires, l'architecture est probablement fausse.
+- **Les règles métier vivent dans `service.go`.** Jamais dans HTTP, PostgreSQL,
+  templ, JSON ou un middleware. Un algorithme qui fonctionne sans PostgreSQL n'a
+  rien à faire dans `postgres.go`.
+- **Les interfaces appartiennent au consommateur.** Pas de package `ports/`
+  global.
+- **Un module n'importe jamais l'implémentation d'un autre** : il déclare une
+  petite interface locale et le DI injecte.
+- **`platform/` ne contient aucune règle métier.**
+- **Dupliquer du code est acceptable ; dupliquer une règle métier ne l'est pas.**
 
-Ce qui est partagé l'est parce que plusieurs features en ont besoin, jamais par
-défaut :
-- `internal/web/views` — le kit UI : shell, composants, DTO gelés par contrat ;
-- `internal/web/page` — `Render`, `RequestedDay`, `Origin` ;
-- `internal/adapters/voice` — le credential tenant-scoped et le préambule commun
-  aux outils ;
-- `internal/core/<domaine>` — le domaine, qui n'importe jamais un adaptateur.
-
-Un test qui vérifie une garantie traversant les pages (accessibilité, inventaire
-des routes) vit dans son propre package et atteint les features par ce qu'elles
-exportent, comme le routeur.
+### État du dépôt
+L'arbre actuel (`internal/{core,features,adapters,web}`) ne suit pas encore cette
+doctrine. L'écart, son coût et le plan par phases sont mesurés dans
+[`docs/ARCHITECTURE-AUDIT.md`](docs/ARCHITECTURE-AUDIT.md). Le code neuf suit le
+guide dans le module le plus proche de sa capacité.
 
 ### Standard library d'abord
 Avant d'écrire un helper, un parseur, un validateur ou une abstraction, vérifier
@@ -76,12 +81,9 @@ déjà présente, puis seulement une implémentation locale. Vérifier la
 documentation officielle courante, pas la mémoire, et dire dans le résumé ce qui
 a été vérifié.
 
-Les interfaces provider sont justifiées pour les dépendances externes coûteuses/changeantes :
-- `VoiceProvider`
-- `SchedulingProvider`
-- éventuellement `BusinessEnrichmentProvider`
-
-Le domaine ne dépend jamais directement du SDK d'un provider.
+Les interfaces provider restent justifiées pour les dépendances externes
+coûteuses ou changeantes : `VoiceProvider`, `SchedulingProvider`, éventuellement
+`BusinessEnrichmentProvider`. Le domaine ne dépend jamais du SDK d'un provider.
 
 ## Invariants métier
 - `tenant_id` vient du contexte serveur, jamais d'un argument libre envoyé par le LLM.

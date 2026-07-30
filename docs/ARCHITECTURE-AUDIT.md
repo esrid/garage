@@ -333,62 +333,44 @@ produira pire.
 
 ## 10. Arbre cible proposé et plan par phases
 
-### Arbre cible (Option B aboutie)
+### Arbre cible
 
-```
-cmd/
-    garage/                  le serveur
-    provisionstaff/          la commande d'amorçage
-internal/
-    modules/
-        scheduling/          rendez-vous, ouvertures, créneaux
-            domain.go        règles : transitions, capacité, créneaux, durées
-            service.go
-            store_postgres.go
-            http_desk.go     POST /app/appointments, /app/openings
-            http_voice.go    outils voix dispo + réservation
-            page.templ
-            *_test.go
-        calls/               conversations, historique, consommation
-        customers/           clients, véhicules, fiches
-        followups/           demandes de rappel et de devis
-        identity/            staff, sessions, page de connexion
-        dashboard/           composition de la journée (importe des interfaces, pas des modules)
-        site/                site public et pages légales
-    shared/
-        tenant/              contexte tenant, réglages atelier
-        domain/              erreurs, normalisation téléphone
-        web/                 kit UI, Render, RequestedDay, Origin
-        voice/               credential et préambule des outils
-        postgres/            Open, pool, migrations, transactions
-    httpserver/              composition des frontières de confiance
-    di/                      appelle modules/<x>.Wire(pool)
-ops/                         sauvegarde et restauration
-docs/
-```
+**L'arbre cible est celui de [`ARCHITECTURE.md`](ARCHITECTURE.md)**, arbitré par
+le fondateur le 2026-07-30. Il n'est pas répété ici : deux arbres cibles dans un
+même dépôt sont exactement la confusion que cette réorganisation cherche à
+supprimer.
 
-Règles à graver avec l'arbre, sinon il pourrit comme le précédent :
+En résumé : `internal/<capacité>/` à plat, chacune portant `model.go`,
+`service.go`, `repository.go`, `postgres.go`, `http.go`, `voice.go`, `view.go`,
+`page.templ` et ses tests ; l'infrastructure partagée dans `platform/` ; la
+composition et les routes dans `app/`.
 
-1. Un module n'importe **jamais** un autre module. S'il a besoin d'un voisin, il
-   **déclare une interface** et le DI l'injecte. C'est déjà ce que fait
-   `dashboard`, et c'est ce qui a évité tout cycle jusqu'ici.
-2. `shared/` accueille uniquement ce qu'**au moins trois** modules utilisent. En
-   dessous, ça reste dans le module.
-3. Les migrations restent **numérotées globalement** dans `shared/postgres` : une
-   base, une séquence. Le découpage par module ne s'applique pas au schéma.
+Cet arbre est **plus plat** que celui que cet audit proposait initialement
+(`modules/` + `shared/`) : pas de niveau intermédiaire, et le nom du répertoire
+est le nom de la capacité. Les trois règles qui le maintiennent en vie sont
+inchangées et deviennent les règles 6, 7 et 8 du guide :
+
+1. un module n'importe **jamais** l'implémentation d'un autre — il déclare une
+   interface locale, le DI injecte ;
+2. `platform/` n'accueille que de l'infrastructure, jamais une règle métier ;
+3. `postgres.go` ne contient que du SQL — un algorithme qui tourne sans base
+   remonte dans `service.go`.
+
+Les migrations restent numérotées globalement : une base, une séquence. Le
+découpage par capacité ne s'applique pas au schéma.
 
 ### Plan par phases
 
 | Phase | Contenu | Sortie vérifiable | Risque |
 |---|---|---|---|
-| **0** | Option A en entier (§9) | suite verte, règles de capacité testées unitairement | faible |
-| **1** | `shared/` : déplacer `web/`, `adapters/voice`, `core/domain`, `core/tenant` | build vert, aucun renommage de symbole | faible |
-| **2** | `shared/postgres` : `Open`, pool, migrations sortent du store métier | tests d'intégration verts | moyen |
-| **3** | Premier module vertical : `identity` (le plus isolé, 2 consommateurs) | connexion réelle en navigateur | faible |
-| **4** | `calls` (conversation + calls + usage + postcall) | webhook signé + pages historique et consommation | moyen |
-| **5** | `customers` + `followups` | fiche client réelle, panneau « à traiter » | faible |
-| **6** | `scheduling` — le plus gros, **en dernier** | réservation comptoir **et** vocale, planning, statuts | élevé |
-| **7** | `dashboard`, `site`, puis réécriture du DI en `Wire` par module | inventaire des routes vert, smoke complet | moyen |
+| **0** | Option A en entier (§9) : remonter capacité et créneaux dans le domaine, une seule source pour les durées, clé d'idempotence hors de la vue | suite verte, règles de capacité testées **sans base** | faible |
+| **1** | `platform/` : `postgres` (Open, pool, migrations), `httpserver`, `voice`, `config`, `sessions`, `logging` | build vert, aucun symbole renommé | faible |
+| **2** | `tenant/` — le plus transverse, il conditionne tous les autres | contexte tenant et réglages inchangés de bout en bout | moyen |
+| **3** | `identity/` — le plus isolé, 2 consommateurs | connexion réelle en navigateur | faible |
+| **4** | `conversation/` (historique, consommation, webhook post-appel) | webhook signé + pages historique et consommation | moyen |
+| **5** | `customer/`, `vehicle/`, `followup/` | fiche client réelle, panneau « à traiter » | faible |
+| **6** | `appointment/` — le plus gros, deux entrées, **en dernier** | réservation comptoir **et** vocale, planning, statuts | élevé |
+| **7** | `dashboard/`, `site/`, puis `app/` : `app.go` + `routes.go` remplacent `di` et `httpserver/handler.go` | inventaire des routes vert, smoke complet | moyen |
 
 Une phase = un commit, suite complète verte et smoke sur l'application réelle
 avant la suivante. Toute phase qui casse plus de trois fichiers de test hors
