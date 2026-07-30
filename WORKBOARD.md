@@ -15,12 +15,13 @@
 | F00 | Socle PostgreSQL 18 + pgx + Goose | Agent A | - | `go.mod`, `go.sum`, `Dockerfile`, `compose.yml`, `.github/workflows/ci.yml`, `internal/config/**`, `internal/di/**`, `internal/adapters/stores/postgres/**`, suppression de `internal/adapters/stores/sqlite/**`, `docs/POSTGRESQL.md`, `README.md` | `postgres.Store` satisfait `ports.ReadinessStore`; migrations SQL embarquées | démarrage, migrations idempotentes, readiness, tests PostgreSQL | MERGED |
 | F01 | Tenant + Customer + Vehicle | Agent A | F00 | `docs/contracts/F01-customer-vehicle.md`, `docs/DATABASE.md`, `internal/core/tenant/**`, `internal/core/customer/**`, `internal/core/vehicle/**`, `internal/adapters/stores/postgres/tenant*.go`, `internal/adapters/stores/postgres/customer*.go`, `internal/adapters/stores/postgres/vehicle*.go`, `internal/adapters/stores/postgres/migrations/00002_tenant_customer_vehicle.sql`, `cmd/main.go` (import stdlib `time/tzdata` uniquement) | `docs/contracts/F01-customer-vehicle.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte serveur | create/find by phone, tenant isolation | REVIEW |
 | F02A | Mini-planning atelier — backend | Agent A | F00,F01 | `docs/contracts/F02A-planning.md`, `docs/SCHEDULING.md`, `internal/core/appointment/**`, `internal/adapters/stores/postgres/appointment*.go`, `internal/adapters/stores/postgres/migrations/00003_appointment.sql`, `internal/adapters/handlers/appointment*.go`, `internal/adapters/httpserver/handler.go` (routing contracté uniquement), `internal/di/**` (wiring uniquement), suppression de `internal/adapters/handlers/dashboard_fixture.go` après adaptateur réel | `docs/contracts/F02A-planning.md` (frozen 2026-07-30); `tenant_id` uniquement depuis contexte; recheck atomique; idempotence | disponibilité + créer/déplacer/annuler + tenant isolation + dashboard réel | REVIEW |
-| F02B | Mini-planning atelier — UI | Agent B | F02A | `internal/web/views/planning*`, `internal/adapters/handlers/planning*.go`, `internal/web/views/layout.templ` (un lien de nav), `assets/src/css/app.css` (composants planning), `internal/adapters/httpserver/handler.go` (deux routes GET), `internal/di/**` (wiring uniquement) | consomme `docs/contracts/F02A-planning.md` (gelé) : deux GET à moi, les trois POST à Agent A ; aucun `tenant_id` en route/form/DTO | rendu + progressive enhancement + a11y | IN_PROGRESS |
+| F02B | Mini-planning atelier — UI | Agent B | F02A | `internal/web/views/planning*`, `internal/adapters/handlers/planning*.go`, `internal/web/views/layout.templ` (un lien de nav), `assets/src/css/app.css` (composants planning), `internal/adapters/httpserver/handler.go` (deux routes GET), `internal/di/**` (wiring uniquement) | consomme `docs/contracts/F02A-planning.md` (gelé) : deux GET à moi, les trois POST à Agent A ; aucun `tenant_id` en route/form/DTO | 16 tests ; `?day=` lu dans le timezone tenant, heures converties, créneaux par durée de RDV, clé d'idempotence déterministe, dégradation partielle ; boot réel PostgreSQL 18.4 ; screenshots 1280 + 380 px réels, clair/sombre, replié/déplié | REVIEW |
 | F03 | Voice lookup customer tool | Agent A | F01 | `docs/contracts/F03-voice-customer-lookup.md`, `docs/ELEVENLABS.md`, `internal/adapters/voice/**`, `internal/config/**` (variable credentials uniquement), `compose.yml` (une variable app), `internal/adapters/httpserver/handler.go` (une route), `internal/di/**` (wiring uniquement) | `docs/contracts/F03-voice-customer-lookup.md` (frozen 2026-07-30); secret → tenant context, jamais tenant_id LLM | known + unknown phone + auth/isolation + erreurs bornées | REVIEW |
 | F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | REVIEW — page servie sur `GET /app`, fragment `GET /app/today`, 11 tests, vérifiée en navigateur à 380 et 1280 px |
 | F05 | Voice find slots + book appointment | Agent A | F02A,F03 | `docs/contracts/F05-voice-book-appointment.md`, `docs/ELEVENLABS.md` (ajout F05 uniquement), `internal/adapters/voice/appointment_booking*.go`, `internal/adapters/httpserver/handler.go` (deux routes uniquement), `internal/di/**` (wiring uniquement) | `docs/contracts/F05-voice-book-appointment.md` (frozen 2026-07-30); interfaces `SchedulingProvider` inchangées | disponibilité persistée + confirmation après commit + auth/isolation + idempotence déterministe | REVIEW |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
 | F07 | Site public + SEO (PRD §11) | Agent B | - | `internal/web/views/site*`, `internal/adapters/handlers/site*.go`, `assets/src/css/site.css`, `assets/src/css/app.css` (un `@import`), `internal/adapters/httpserver/handler.go` (une ligne de montage) | routes `/`, `/fonctionnalites`, `/tarifs`, `/garages`, `/demo`, `/contact`, `/mentions-legales`, `/confidentialite`, `/cgv`, `/cgu`, `/robots.txt`, `/sitemap.xml` — aucun `tenant_id`, aucun état serveur | 12 tests ; SEO head par page, sitemap trié, footer sans 404, CTA sans self-link ; smoke sur PostgreSQL 18.4 réel ; screenshots 1280 + 380 px réels, clair et sombre | REVIEW |
+| F08 | Demande vocale de rappel/devis | Agent A | F01,F03 | `docs/contracts/F08-follow-up-request.md`, `docs/DATABASE.md` (ajout F08), `docs/ELEVENLABS.md` (ajout F08), `internal/core/followup/**`, `internal/adapters/stores/postgres/followup*.go`, `internal/adapters/stores/postgres/migrations/00004_follow_up_request.sql`, `internal/adapters/voice/followup*.go`; route et DI uniquement après release F02B | `docs/contracts/F08-follow-up-request.md` (frozen 2026-07-30); tenant depuis Bearer, liaison client par téléphone côté serveur | connu/inconnu + tenant isolation + rejeu identique + conflit + erreurs bornées | IN_PROGRESS |
 
 PR #1 was merged by the founder as `229598e` on `main`. The local
 `feat/foundation-postgres-css` HEAD is the second parent of that merge and has no
@@ -50,6 +51,20 @@ F05 est CLAIM par Agent A et ne touche aucun chemin possédé par Agent B.
 Le contrat HTTP F05 est gelé avant implémentation dans
 `docs/contracts/F05-voice-book-appointment.md`. Les interfaces provider F02A
 restent inchangées. F02B peut continuer indépendamment.
+
+## Coordination F08 — Agent A, 2026-07-30
+
+F08 est CLAIM sans prendre la zone DI détenue par Agent B pour F02B. Agent A
+fige puis implémente le contrat, le domaine, la migration/store PostgreSQL et le
+handler voix dans des chemins indépendants. Le montage de la route et le wiring
+DI restent différés jusqu'au handoff explicite F02B ; Agent A ne modifiera pas
+ces deux zones pendant l'ownership Agent B.
+
+La demande ne reçoit ni `tenant_id`, ni `customer_id`, ni statut depuis le LLM.
+Le Bearer F03 établit le tenant et le store rattache éventuellement le client
+par téléphone normalisé dans ce même tenant. Aucun provider externe ni nouvelle
+dépendance n'est introduit.
+
 - F06 is CSS only. No Go, no new dependency, no DI change — it merges independently
   of F00.
 - **Blocked, needs Agent A:** every templ view (F04, F02B) needs
@@ -493,6 +508,98 @@ Next safe task Agent B : F02B (planning UI). Ton contrat F02A est gelé, mes GET
 sont /app/planning et /app/planning/day, tes trois POST restent à toi.
 ```
 
+## Open handoff — Agent B to Agent A, F02B review, 2026-07-30
+
+Contexte autonome pour une review sans historique préalable :
+
+```
+Feature: F02B Mini-planning atelier — UI
+From: Agent B (frontend)
+To: Agent A (reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué. Commit 7e5b10b.
+
+Zone DI root : RELEASED. Le wiring F02B est fait, F08 peut la prendre.
+
+Contrat consommé sans modification : docs/contracts/F02A-planning.md
+  GET /app/planning?day=YYYY-MM-DD                    -> page complète (à moi)
+  GET /app/planning/day?day=...&duration_minutes=60   -> fragment (à moi)
+  Les trois POST restent les tiens ; je poste dessus depuis des formulaires
+  natifs, sans htmx, sans champ inventé.
+
+Le piège timezone que tu avais écrit : traité explicitement.
+  Une date civile ne veut rien dire sans le timezone du tenant, et il est en
+  base. Donc : Day(ctx, now) d'abord, puis time.ParseInLocation dans la
+  location renvoyée, à midi. Jamais time.Parse en UTC utilisé tel quel.
+  Un test le verrouille : ?day=2026-07-31 doit arriver chez toi comme le
+  2026-07-31 en Martinique, pas comme le 30 à 20:00.
+
+Ce que la page garantit, à ne pas casser :
+  - toutes les heures affichées sont converties dans la location du tenant ;
+  - une ligne n'est proposée que les créneaux où SA durée entre : une requête
+    de disponibilité par durée distincte, bornée à 6, sinon aucune option ;
+  - `pending` et `confirmed` seuls reçoivent les boutons déplacer/annuler,
+    d'après ta table de transitions ; `in_progress`, `done`, `cancelled`,
+    `no_show` n'affichent rien à cliquer ;
+  - aucune ouverture en base -> "aucune ouverture enregistrée", jamais un
+    08:00-17:00 inventé ;
+  - créneaux en erreur mais journée lue -> les RDV s'affichent quand même et
+    le panneau dit que les créneaux sont incalculables. Jamais "journée
+    complète", qui affirmerait un fait qu'on n'a pas.
+
+Clé d'idempotence, le point à challenger en priorité :
+  générée dans la vue, sha256(opération | id | start courant | durée), tronquée.
+  Déterministe : double clic ou refresh -> même clé, même donnée -> ton backend
+  rejoue sa première réponse. Après un déplacement réussi, le start change donc
+  la clé suivante change. Formulaire périmé rejoué depuis le bouton retour ->
+  même clé, donnée différente -> 409 chez toi, pas de double booking. Si tu
+  préfères une clé fournie par le serveur, c'est une mini-tâche : dis-le.
+
+Incohérence assumée, ton arbitrage :
+  sans tenant en contexte, /app/planning répond 401 (table d'erreurs F02A) mais
+  /app répond 200 dégradé (contrat F04 gelé, garantie que tu m'as demandée).
+  Les deux sont défendables mais divergent. Quand la brique auth/middleware
+  existera, il faudra trancher : soit F04 est amendé par mini-tâche, soit le
+  planning s'aligne. Aujourd'hui aucune des deux routes n'est exposable
+  publiquement, comme ton contrat le dit.
+
+Findings pour toi, dans tes chemins, je n'y touche pas :
+  1. internal/adapters/handlers/appointment_today_provider.go passe
+     entry.Start tel quel dans la vue F04. Si pgx rend timestamptz en UTC, le
+     dashboard affiche des heures UTC. Mon adaptateur convertit explicitement
+     avec .In(day.Date.Location()). À vérifier de ton côté ; je n'ai pas pu
+     l'observer en vrai puisque /app est dégradé sans tenant.
+  2. les trois POST renvoient leurs erreurs en text/plain via http.Error. Ton
+     contrat dit "F02B renders human-readable HTML from these outcomes" : après
+     un 409 le garage voit "appointment conflict" en Times New Roman. Pour que
+     je rende ces cas en HTML il faut soit un redirect avec un motif, soit que
+     tu m'appelles pour rendre la page. Mini-tâche à décider ensemble.
+
+Limites connues :
+  - pas de formulaire de création de RDV : il faut un customer_id, et F01
+    n'expose aucune route HTTP pour chercher un client. Brique manquante, pas
+    un oubli. Le jour où elle existe, POST /app/appointments est déjà prêt.
+  - pas de vue calendaire (colonnes horaires) : listes + chips. Suffisant pour
+    la démo, et ça tient à 380 px.
+  - annulation sans double confirmation : elle est repliée dans un <details>,
+    donc il faut deux gestes. Pas de dialogue JS.
+  - parcours clavier et lecteur d'écran réels : toujours non testés.
+
+Tests / validation :
+  go build ./... ; go vet ./... ; go test -race ./... (tout vert)
+  16 tests F02B : rendu du jour, timezone du paramètre, date illisible, durée
+    refusée, une requête par durée, options limitées à la durée de la ligne,
+    statuts terminaux sans action, clés stables et distinctes, aucune ouverture
+    inventée, 401 sans tenant, dégradation base, dégradation créneaux seuls,
+    fragment sans shell.
+  boot réel contre postgres:18.4-bookworm : /app/planning et le fragment
+    répondent 401 avec le message honnête, /app et / répondent 200.
+  visuel : 1280 px et 380 px réels (clientWidth=380, scrollWidth=380, aucun
+    débordement), clair et sombre, <details> replié et déplié.
+
+Next safe task Agent B : F07 reste en review ; sinon UX/a11y ou les pages
+  légales à compléter quand le fondateur fournit l'identité.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -500,8 +607,8 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | Agent B | F02B REVIEW | wiring du handler planning F02B uniquement (une construction + un argument `httpserver.New`) |
-| DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
+| DI root | - | - | **RELEASED** par Agent B : wiring F02B terminé (`handlers.NewPlanning` + un argument `httpserver.New`). F08 peut prendre la zone. |
+| DB migration numbering | Agent A | F08 REVIEW | migration `00004_follow_up_request.sql` uniquement |
 | `compose.yml` | - | - | F03 terminé ; prochain owner doit CLAIM avant édition |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
 | global layout/tokens | Agent B | F06 MERGED | global UI contract |
