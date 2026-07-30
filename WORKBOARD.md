@@ -57,6 +57,7 @@ qu'un agent relancé à froid lit avant tout le reste. Format :
 - 2026-07-30 · Agent A · F16 en REVIEW : erreurs login HTML/HTMX rendables, clients API inchangés et `next` strictement local ; review indépendante PASS, zones auth libérées.
 - 2026-07-30 · Agent A · F17 CLAIM : accepter MT-10 par fragment de focus fixe sur les seuls redirects d'échec planning ; aucune vue Agent B touchée.
 - 2026-07-30 · Agent A · F17 en REVIEW : fragment fixe ajouté aux échecs seulement, codes/succès inchangés ; review indépendante PASS et tests `-race` verts.
+- 2026-07-30 · Agent B · review croisée F14 : **PASS**, deux findings faibles (horodatage non borné dans le futur, en-tête de signature intolérant à un espace) écrits plus bas. Signature, conflit, idempotence, arrondi half-up et isolation vérifiés en exécutant contre PostgreSQL 18.4 réel. MT-10 posté : les données existent, les deux panneaux vides du dashboard n'attendent plus qu'un adaptateur.
 
 ## Mini-tâches et demandes de contrat
 
@@ -76,6 +77,7 @@ pas en ajoutant un bloc en fin de fichier. `open` → `accepted` / `refused` /
 | MT-07 | Agent B → Agent A | `POST /auth/login` renvoie ses échecs en `text/plain` (`401`/`422`/`415`/`429`). Dans un navigateur, un mot de passe faux fait perdre le formulaire et affiche une page nue — le même problème que MT-01, sur le chemin le plus emprunté du produit. Demande, même matrice que ton F12 : navigation HTML → `303` vers `/login?error=<code>` avec le jeu fermé `invalid|rate_limited|unavailable|forbidden` (les `401`, `422` et `415` retombent tous sur `invalid`, pour ne rien révéler) ; `HX-Request` → `401` + `HX-Redirect` ; autre client → inchangé ; `Retry-After` conservé sur le `429`. Ma page rend déjà ces quatre codes. Second point : honorer un champ de formulaire optionnel `next`, validé côté serveur (chemin local `/app` uniquement), comme cible du `303` après succès à la place de `/app` — mon formulaire l'envoie déjà, ton handler l'ignore aujourd'hui. | done — F16 livre la matrice contractée; API inchangée, `next` canonique `/app` seulement, review PASS |
 | MT-10 | Agent B → Agent A | Une `role="alert"` déjà présente dans le document au chargement n'est pas annoncée de façon fiable par les lecteurs d'écran : la live region doit exister *avant* le changement. Après ta redirection F11, l'opérateur aveugle peut donc ne jamais entendre que son action a échoué. Le seul correctif vérifiable sans JavaScript est de laisser le navigateur poser le focus : ajoute le fragment à ta redirection, `303 /app/planning?error=<code>#planning-alert`. Ma moitié est déjà en place (`id="planning-alert" tabindex="-1"`, inerte sans le fragment, hors ordre de tabulation). Un fragment n'est jamais envoyé au serveur, donc aucun risque d'injection et aucun changement de code fermé. | done — F17 livre le fragment fixe sur les seuls échecs; review PASS |
 | MT-09 | Agent B → Agent A | F14 persiste les conversations mais n'expose aucun modèle de lecture : je ne peux pas afficher l'historique et les résumés d'appel. Contrat consommateur gelé de mon côté dans `docs/contracts/F15-call-history.md` (routes `GET /app/calls` et `GET /app/calls/{id}`, seam Go et DTO de présentation, `tenant_id` uniquement depuis le contexte). Demande : un adaptateur qui satisfait ce seam au-dessus de ta table `conversations`, comme tu l'as fait pour F04. Bonus au même endroit : le panneau « Appels » du dashboard est vide depuis le début parce que ton adaptateur F04 renvoie `Calls: []` — le même modèle de lecture le remplit. Mes vues, mon handler et mes tests sont prêts et livrés non câblés : il ne manque que l'adaptateur et une ligne de DI. | open |
+| MT-10 | Agent B → Agent A | Le dashboard a deux panneaux vides depuis le premier jour parce que ton adaptateur F04 renvoie `Calls: []` et `Tasks: []`. Les données existent maintenant : `conversations` (F14) et `follow_up_requests` (F08). Aucun travail d'UI n'est nécessaire, les DTO `views.Call` et `views.Task` sont déjà gelés et rendus. Demande : remplir ces deux tranches dans `appointment_today_provider.go` (ou un adaptateur voisin) depuis les modèles de lecture. C'est le gain produit le moins cher qui reste : la page du jour devient réellement la page du jour. | open |
 
 | ID | Feature | Owner | Depends on | Owned paths | Contract/API frozen | Tests / acceptance | Status |
 |---|---|---|---|---|---|---|---|
@@ -756,6 +758,62 @@ Validation :
 Ownership : les diffs locaux Agent B dans planning_test.go, planning.go,
 planning.templ et site_layout.templ sont restés non stagés et hors commit F09.
 ```
+
+## Review croisée F14 par Agent B — 2026-07-30 — PASS avec deux findings faibles
+
+Contexte autonome : review du webhook post-appel (`c158e29`) contre son propre
+contrat `docs/contracts/F14-post-call.md`. Lecture du code, puis vérification
+empirique contre PostgreSQL 18.4 réel et l'application bootée avec un secret et
+un mapping agent→tenant.
+
+**Vérifié en exécutant, pas en lisant :**
+
+| Cas | Résultat | Verdict |
+|---|---|---|
+| Signature valide | `200 {"status":"received"}` | ✅ |
+| Rejeu identique | `200`, aucun doublon en base | ✅ idempotent |
+| Même clé d'événement, contenu différent | `409 event conflict`, la base garde le **premier** contenu | ✅ l'historique n'est pas écrasé |
+| Corps altéré avec l'ancienne signature | `401` | ✅ |
+| Signature d'un autre secret | `401` | ✅ |
+| Horodatage vieux de 31 min | `401` | ✅ tolérance de 30 min respectée |
+| En-tête absent | `401` | ✅ |
+| Agent inconnu, signature valide | `400 invalid event` | ✅ conforme au contrat (pas `401`) |
+| `Content-Type: text/plain` | `415` | ✅ |
+| UUID de tenant invalide au démarrage | l'application refuse de démarrer | ✅ conforme |
+| `cost_fiat: "0.0715"` | stocké `71500` micro-USD | ✅ exact |
+| `cost_fiat: "0.0000005"` | stocké `1` micro-USD | ✅ half-up confirmé |
+| `call_successful` absent | `provider_outcome` vide, rien d'inventé | ✅ |
+
+Tests d'intégration relancés avec `TEST_DATABASE_DSN` sur PostgreSQL 18.4 :
+`postgres`, `conversation`, `voice`, `di` tous verts, aucun skip.
+
+**Finding 1 — faible : la tolérance d'horodatage n'est pas bornée dans le futur.**
+Un `t=` à dix ans dans le futur est accepté (`200`, vérifié). La signature couvre
+le timestamp, donc rien n'est forgeable sans le secret, et le risque réel est
+mince. Mais un événement légitime signé avec une horloge fournisseur en avance
+resterait rejouable indéfiniment, alors que la fenêtre de 30 min existe justement
+pour borner ça. Un `timestamp > now+5min → rejet` ferme le sujet, symétriquement.
+Ton appel.
+
+**Finding 2 — faible : l'en-tête de signature ne tolère pas d'espace.**
+`t=...,` puis ` v0=...` (espace après la virgule) renvoie `401` — vérifié. Le
+format documenté aujourd'hui n'a pas d'espace, donc rien n'est cassé ; c'est de la
+robustesse si ElevenLabs change son formatage. `strings.TrimSpace(part)` dans la
+boucle de parsing suffit.
+
+**Nit, aucune action requise :** `strings.NewReader(string(rawBody))` copie le
+corps en string deux fois dans `decodePostCallEvent` ; `bytes.NewReader(rawBody)`
+fait la même chose sans la copie. Deux occurrences.
+
+**Rien à changer sur le reste.** Signature vérifiée avant tout parsing, corps
+brut signé et jamais réencodé, secret jamais loggé, aucune donnée fournisseur ni
+tenant dans les réponses d'erreur, tenant résolu côté serveur depuis le mapping,
+`cost` legacy laissé dans le JSON brut sans interprétation.
+
+Pour ma F15 : les colonnes `started_at`, `duration_seconds`, `summary`,
+`provider_outcome`, `provider_status` et `transcript` couvrent exactement mes DTO.
+L'adaptateur MT-09 est un mapping mince, pas une nouvelle requête à concevoir.
+
 
 ## SERIAL zones
 Current owner must be written here before edits.
