@@ -64,6 +64,12 @@ func NewAppointmentTools(scheduling *appointment.Service, authenticator *TokenAu
 	return &AppointmentTools{scheduling: scheduling, authenticator: authenticator}
 }
 
+// Register mounts the two scheduling tools the agent calls during a call.
+func (h *AppointmentTools) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST /voice/tools/appointment-availability", h.Availability)
+	mux.HandleFunc("POST /voice/tools/appointment-book", h.Book)
+}
+
 func (h *AppointmentTools) Availability(w http.ResponseWriter, r *http.Request) {
 	var input availabilityRequest
 	ctx, _, err := decodeToolRequest(w, r, h.authenticator, maxAppointmentToolBodyBytes, &input)

@@ -23,6 +23,11 @@ func NewOpeningMutations(service *appointment.Service) *OpeningMutations {
 	return &OpeningMutations{service: service}
 }
 
+// Register mounts the opening declaration.
+func (h *OpeningMutations) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST /app/openings", h.Configure)
+}
+
 // Configure serves POST /app/openings. The form carries the civil day and two
 // wall-clock times, because that is what a garage owner knows; the instants are
 // built in the workshop's own timezone here.

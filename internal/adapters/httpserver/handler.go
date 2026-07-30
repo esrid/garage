@@ -78,68 +78,65 @@ func mountPublic(mux *http.ServeMux) {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 }
 
-// mountAuthentication is the boundary crossing itself: the only two routes that
-// turn a password into a session and back. Public by necessity, and protected by
-// the cross-origin check plus their own derivation budget.
-func mountAuthentication(mux *http.ServeMux, deps Deps) {
-	mux.HandleFunc("POST /auth/login", deps.Authentication.Login)
-	mux.HandleFunc("POST /auth/logout", deps.Authentication.Logout)
-}
-
 // mountApplication is the staff area, and the sub-router earns its place: every
 // route inside goes through requireStaffSession, which is what puts the staff
 // identity and the tenant into the context these handlers read. Registering them
 // on the root mux would mean repeating that wrapper per route, and losing it the
 // day someone adds a page in a hurry.
+//
+// Each feature registers its own patterns; this function only says which ones are
+// behind the session.
 func mountApplication(mux *http.ServeMux, deps Deps) {
 	appMux := http.NewServeMux()
-	appMux.HandleFunc("GET /app", deps.Dashboard.Page)
-	appMux.HandleFunc("GET /app/today", deps.Dashboard.Fragment)
-	appMux.HandleFunc("GET /app/planning", deps.Planning.Page)
-	appMux.HandleFunc("GET /app/planning/day", deps.Planning.Fragment)
-	appMux.HandleFunc("POST /app/openings", deps.Openings.Configure)
-	appMux.HandleFunc("POST /app/appointments", deps.Appointments.Book)
-	appMux.HandleFunc("POST /app/appointments/{id}/reschedule", deps.Appointments.Reschedule)
-	appMux.HandleFunc("POST /app/appointments/{id}/cancel", deps.Appointments.Cancel)
+	deps.Dashboard.Register(appMux)
+	deps.Planning.Register(appMux)
 	deps.Calls.Register(appMux)
+	deps.Appointments.Register(appMux)
+	deps.Openings.Register(appMux)
 
 	protected := requireStaffSession(deps.Sessions, appMux)
-	// Both patterns: "/app" alone does not match "/app/planning", and "/app/" does
-	// not match "/app". Dropping either would leave a page outside the session.
+	// Both patterns: mounting only "/app/" makes the mux redirect "/app" to it,
+	// which the documentation describes and which would turn the dashboard into a
+	// round trip. Registering both is the documented way to override that.
 	mux.Handle("/app", protected)
 	mux.Handle("/app/", protected)
 }
 
-// mountVoiceTools is what the voice agent calls during a conversation. The
-// sub-router names one credential: every route here authenticates a bearer token
-// issued per tenant, resolves the tenant from it on the server, and never accepts
-// a tenant identifier from the payload the model produced (PRD 7.1).
+// mountVoiceTools is what the voice agent calls during a conversation. Every
+// route here authenticates a bearer token issued per tenant, resolves the tenant
+// from it on the server, and never accepts a tenant identifier from the payload
+// the model produced (PRD 7.1).
 //
-// It is also where a concern shared by tool traffic belongs the day one appears —
-// a rate limit, an audit trail. Nothing wraps it yet because each handler still
-// enforces its own bounds, and moving that would be a behaviour change disguised
-// as a refactor.
+// The sub-router is also where a concern shared by tool traffic belongs the day
+// one appears — a rate limit, an audit trail. Nothing wraps it yet because each
+// handler still enforces its own bounds.
 func mountVoiceTools(mux *http.ServeMux, deps Deps) {
 	tools := http.NewServeMux()
-	tools.Handle("POST /voice/tools/customer-lookup", deps.CustomerLookup)
-	tools.HandleFunc("POST /voice/tools/appointment-availability", deps.AppointmentTools.Availability)
-	tools.HandleFunc("POST /voice/tools/appointment-book", deps.AppointmentTools.Book)
-	tools.Handle("POST /voice/tools/follow-up-request", deps.FollowUpTool)
+	deps.CustomerLookup.Register(tools)
+	deps.AppointmentTools.Register(tools)
+	deps.FollowUpTool.Register(tools)
 
-	// Full paths stay inside the sub-router, so a pattern reads the same here, in
-	// the access log, and in the ElevenLabs tool configuration.
+	// Full paths stay inside the sub-router, which the mux documentation
+	// guarantees: mounting a handler on a subtree does not strip the prefix. A
+	// pattern therefore reads the same here, in the access log, and in the
+	// ElevenLabs tool configuration.
 	mux.Handle("/voice/", tools)
 }
 
 // mountWebhooks is what the provider calls after a conversation. Separate from
 // the tools on purpose: this boundary is proved by an HMAC signature over the raw
-// body, not by a bearer token, and it is the only place where a replay window and
-// a payload hash decide whether a delivery is accepted.
+// body, not by a bearer token.
 func mountWebhooks(mux *http.ServeMux, deps Deps) {
 	webhooks := http.NewServeMux()
-	webhooks.Handle("POST /webhooks/elevenlabs/post-call", deps.PostCallWebhook)
+	deps.PostCallWebhook.Register(webhooks)
 
 	mux.Handle("/webhooks/", webhooks)
+}
+
+// mountAuthentication is the boundary crossing itself: the only two routes that
+// turn a password into a session and back.
+func mountAuthentication(mux *http.ServeMux, deps Deps) {
+	deps.Authentication.Register(mux)
 }
 
 func (h *handler) health(w http.ResponseWriter, _ *http.Request) {

@@ -109,6 +109,12 @@ func NewPostCallWebhook(recorder postCallRecorder, secret, encodedAgentTenants s
 	return handler, nil
 }
 
+// Register mounts the post-call webhook. Its boundary is an HMAC signature over
+// the raw body, verified inside before anything is parsed.
+func (h *PostCallWebhook) Register(mux *http.ServeMux) {
+	mux.Handle("POST /webhooks/elevenlabs/post-call", h)
+}
+
 func (h *PostCallWebhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !h.enabled {

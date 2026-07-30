@@ -153,3 +153,119 @@ Pas d'illimité. Tant que les factures réelles ne prouvent pas mieux, utiliser 
 - commentaires pour le pourquoi, pas pour paraphraser le code
 - erreurs avec contexte
 - aucune abstraction « au cas où »
+
+
+## Standard Library First
+
+Before creating any helper, abstraction, middleware, parser, validator, data structure, utility, or dependency, first verify whether the functionality already exists in:
+
+1. The Go standard library.
+2. The official Go extended packages under `golang.org/x/...`.
+3. An existing package already used by this project.
+4. The official documentation of the external service being integrated.
+
+Do not rely only on memory. Check the current official documentation before implementing.
+
+Examples of things that must be checked before being reimplemented:
+
+* HTTP routing and middleware support
+* URL and query parsing
+* JSON encoding and decoding
+* Form parsing
+* Cookies
+* Context cancellation and timeouts
+* Cryptography and hashing
+* Random token generation
+* Email and MIME parsing
+* Validation primitives
+* Filesystem operations
+* Structured logging
+* Rate limiting
+* Concurrency primitives
+* String, slice, map, time, and networking utilities
+* HTML features such as `dialog`, `details`, `summary`, popovers, native validation, and semantic form elements
+* Modern CSS features such as grid, flexbox, custom properties, container queries, `:has()`, nesting, layers, and responsive functions
+
+The order of preference is:
+
+```text
+Existing browser or HTML capability
+→ Go standard library
+→ golang.org/x package
+→ existing project dependency
+→ small project-specific implementation
+→ new third-party dependency
+```
+
+Do not reinvent functionality that the platform already provides.
+
+Do not create a generic abstraction around a standard-library feature unless the project has a concrete need for it.
+
+## HTTP Router Organization
+
+Do not register every route inside one enormous root `http.ServeMux`.
+
+Organize routes by feature using subrouters or feature-level registration functions.
+
+Preferred structure:
+
+```go
+func NewRouter(deps Dependencies) http.Handler {
+    root := http.NewServeMux()
+
+    root.Handle("/customers/", customers.NewHandler(deps.Customers))
+    root.Handle("/appointments/", appointments.NewHandler(deps.Appointments))
+    root.Handle("/vehicles/", vehicles.NewHandler(deps.Vehicles))
+    root.Handle("/calls/", calls.NewHandler(deps.Calls))
+
+    return root
+}
+```
+
+Each feature should own and register its own routes:
+
+```go
+func NewHandler(service *Service) http.Handler {
+    mux := http.NewServeMux()
+
+    mux.HandleFunc("GET /customers", service.List)
+    mux.HandleFunc("POST /customers", service.Create)
+    mux.HandleFunc("GET /customers/{id}", service.Show)
+
+    return mux
+}
+```
+
+A feature package should ideally contain its own:
+
+```text
+handler.go
+routes.go
+service.go
+queries.go
+templates/
+tests/
+```
+
+The root router should only compose feature routers and global middleware.
+
+Do not place business logic inside route registration.
+
+Do not create a custom router framework. Use `net/http` composition unless the standard library demonstrably cannot satisfy the requirement.
+
+## Mandatory Pre-Implementation Check
+
+Before writing code, briefly answer internally:
+
+1. Does Go already provide this?
+2. Does `golang.org/x` already provide this?
+3. Does HTML or CSS already provide this?
+4. Does the project already contain this functionality?
+5. Does the official API or library already expose the required operation?
+6. Can this be implemented with a small, explicit function instead of a new abstraction?
+7. Which feature owns this route and these files?
+
+Only proceed after this check.
+
+When completing a task, mention in the implementation summary which official documentation or standard-library capability was checked.
+

@@ -47,6 +47,13 @@ func NewPlanning(reader PlanningReader) *Planning {
 	return &Planning{reader: reader, now: time.Now}
 }
 
+// Register mounts the workshop day. The three mutation routes belong to
+// AppointmentMutations and OpeningMutations, which register their own.
+func (h *Planning) Register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /app/planning", h.Page)
+	mux.HandleFunc("GET /app/planning/day", h.Fragment)
+}
+
 // Page serves GET /app/planning.
 func (h *Planning) Page(w http.ResponseWriter, r *http.Request) {
 	data, status := h.load(r)

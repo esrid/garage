@@ -25,6 +25,14 @@ func NewAppointmentMutations(service *appointment.Service) *AppointmentMutations
 	return &AppointmentMutations{service: service}
 }
 
+// Register mounts the appointment mutations, which the F02A contract freezes as
+// form posts answering with a 303.
+func (h *AppointmentMutations) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST /app/appointments", h.Book)
+	mux.HandleFunc("POST /app/appointments/{id}/reschedule", h.Reschedule)
+	mux.HandleFunc("POST /app/appointments/{id}/cancel", h.Cancel)
+}
+
 func (h *AppointmentMutations) Book(w http.ResponseWriter, r *http.Request) {
 	if err := parseAppointmentForm(w, r); err != nil {
 		writeAppointmentError(w, r, err)

@@ -34,6 +34,11 @@ func NewCustomerLookup(customers *customer.Service, authenticator *TokenAuthenti
 	return &CustomerLookup{customers: customers, authenticator: authenticator}
 }
 
+// Register mounts the lookup tool. Its own credential is checked inside.
+func (h *CustomerLookup) Register(mux *http.ServeMux) {
+	mux.Handle("POST /voice/tools/customer-lookup", h)
+}
+
 func (h *CustomerLookup) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var input lookupRequest
 	ctx, tenantID, err := decodeToolRequest(w, r, h.authenticator, maxLookupBodyBytes, &input)

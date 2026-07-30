@@ -37,6 +37,13 @@ func NewAuthentication(service authenticationService) *Authentication {
 	return &Authentication{service: service, limiter: newLoginLimiter()}
 }
 
+// Register mounts the two routes that turn a password into a session and back.
+// GET /login is the frontend's, per the F09 contract.
+func (h *Authentication) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST /auth/login", h.Login)
+	mux.HandleFunc("POST /auth/logout", h.Logout)
+}
+
 func (h *Authentication) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !isFormContentType(r.Header.Get("Content-Type")) {

@@ -32,6 +32,13 @@ func NewDashboard(provider TodayProvider) *Dashboard {
 	return &Dashboard{provider: provider, now: time.Now}
 }
 
+// Register mounts the day view. The patterns live with the handler that answers
+// them, so adding a page here never means editing the router.
+func (d *Dashboard) Register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /app", d.Page)
+	mux.HandleFunc("GET /app/today", d.Fragment)
+}
+
 // Page serves GET /app.
 func (d *Dashboard) Page(w http.ResponseWriter, r *http.Request) {
 	data, degraded := d.today(r)

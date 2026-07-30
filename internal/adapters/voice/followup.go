@@ -39,6 +39,11 @@ func NewFollowUpTool(service *followup.Service, authenticator *TokenAuthenticato
 	return &FollowUpTool{service: service, authenticator: authenticator}
 }
 
+// Register mounts the follow-up tool.
+func (h *FollowUpTool) Register(mux *http.ServeMux) {
+	mux.Handle("POST /voice/tools/follow-up-request", h)
+}
+
 func (h *FollowUpTool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var input followUpToolRequest
 	ctx, tenantID, err := decodeToolRequest(w, r, h.authenticator, maxFollowUpBodyBytes, &input)
