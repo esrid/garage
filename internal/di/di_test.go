@@ -2,6 +2,7 @@ package di
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/esrid/garage/internal/config"
+	coreauth "github.com/esrid/garage/internal/core/auth"
+	"github.com/esrid/garage/internal/core/tenant"
 )
 
 func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
@@ -38,8 +41,60 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 	request = httptest.NewRequest(http.MethodGet, "/app", nil)
 	response = httptest.NewRecorder()
 	app.server.Handler.ServeHTTP(response, request)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "momentanément indisponibles") {
-		t.Fatalf("dashboard status=%d body=%q, want degraded real-provider response", response.Code, response.Body.String())
+	if response.Code != http.StatusUnauthorized || !strings.Contains(response.Body.String(), "authentication required") {
+		t.Fatalf("dashboard status=%d body=%q, want session protection", response.Code, response.Body.String())
+	}
+
+	database, ok := app.database.(interface {
+		tenant.Store
+		coreauth.Store
+	})
+	if !ok {
+		t.Fatal("wired database does not implement auth stores")
+	}
+	tenantValue, err := tenant.NewService(database).Create(context.Background(), tenant.CreateInput{Name: "Garage DI auth"})
+	if err != nil {
+		t.Fatalf("create auth tenant: %v", err)
+	}
+	email := fmt.Sprintf("di-auth-%d@example.com", time.Now().UnixNano())
+	_, err = coreauth.NewService(database).Provision(tenant.WithID(context.Background(), tenantValue.ID), coreauth.ProvisionInput{
+		Email: email, Password: "correct horse battery staple", Role: coreauth.RoleOwner,
+	})
+	if err != nil {
+		t.Fatalf("provision auth staff: %v", err)
+	}
+	loginForm := url.Values{"email": {email}, "password": {"correct horse battery staple"}}
+	request = httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(loginForm.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app" {
+		t.Fatalf("login status=%d location=%q body=%q", response.Code, response.Header().Get("Location"), response.Body.String())
+	}
+	loginCookies := response.Result().Cookies()
+	if len(loginCookies) != 1 {
+		t.Fatalf("login cookies = %#v", loginCookies)
+	}
+	request = httptest.NewRequest(http.MethodGet, "/app", nil)
+	request.AddCookie(loginCookies[0])
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "momentanément indisponibles") {
+		t.Fatalf("authenticated dashboard status=%d body=%q", response.Code, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	request.AddCookie(loginCookies[0])
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("logout status=%d body=%q", response.Code, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodGet, "/app", nil)
+	request.AddCookie(loginCookies[0])
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked dashboard status=%d body=%q", response.Code, response.Body.String())
 	}
 
 	appointmentID := "019c09ea-bca7-7a5d-98b6-3f3b3ed79ea3"

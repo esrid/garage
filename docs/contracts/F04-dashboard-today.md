@@ -16,6 +16,14 @@ first — not a silent edit.
 `GET /app/today` exists so a refresh does not re-send the layout. It returns the
 same fragment the full page embeds, so the page works with JavaScript disabled.
 
+## Amendment 2026-07-30 — F09 authentication
+
+Both routes now require a valid staff session before this handler runs. Missing,
+malformed, expired or revoked sessions return `401`; the former degraded `200`
+without tenant context is no longer externally reachable. The provider seam and
+all rendered behavior remain unchanged. See
+`docs/contracts/F09-authentication.md` and mini-task MT-04.
+
 ## Who owns what
 
 Agent B owns the route registration, the handler, the templ views and the CSS.

@@ -17,6 +17,7 @@ import (
 	"github.com/esrid/garage/internal/adapters/voice"
 	"github.com/esrid/garage/internal/config"
 	"github.com/esrid/garage/internal/core/appointment"
+	coreauth "github.com/esrid/garage/internal/core/auth"
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
@@ -50,9 +51,11 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
 	appointmentTools := voice.NewAppointmentTools(scheduling, voiceAuthenticator)
 	followUpTool := voice.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
+	authenticationService := coreauth.NewService(database)
+	authentication := handlers.NewAuthentication(authenticationService)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool),
+		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, authentication, authenticationService),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

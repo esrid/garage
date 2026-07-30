@@ -17,6 +17,14 @@ requires an explicit mini-task in `WORKBOARD.md` before implementation.
 Until authentication and CSRF middleware exist, mutation routes are implemented
 and tested but must not be exposed as a public unauthenticated deployment.
 
+### Amendment 2026-07-30 — F09 authentication
+
+F09 now supplies that middleware. Every `/app` route requires a valid server
+session, and unsafe browser requests pass through cross-origin protection before
+the mutation handler. The tenant still comes only from `context.Context`; no
+route or form field changed. See `docs/contracts/F09-authentication.md` and
+mini-task MT-04.
+
 ## Canonical statuses
 
 ```text

@@ -35,6 +35,8 @@ qu'un agent relancé à froid lit avant tout le reste. Format :
 - 2026-07-30 · Agent B · F02B planning UI en REVIEW (`9e6edfe`) ; zone DI root libérée.
 - 2026-07-30 · Agent A · F08 câblé dans le DI root et le routeur après release.
 - 2026-07-30 · Agent B · décidé : la clé d'idempotence des formulaires planning dérive de `Appointment.UpdatedAt`, pas du `start`. Keyer sur le start rejouait une clé déjà dépensée après un aller-retour d'horaire et bloquait le déplacement suivant en 409. Amendement additif au contrat F04 (`views.Appointment.UpdatedAt`). Pas de mini-tâche : le correctif était côté B.
+- 2026-07-30 · Agent A · F09 authentification staff CLAIM : contrat HTTP à geler avant code, sessions PostgreSQL et protection uniforme de `/app`; le diff local Agent B dans `planning_test.go` reste hors ownership.
+- 2026-07-30 · Agent A · F09 en REVIEW : review indépendante PASS après correction SQL PostgreSQL réelle et ajout du budget anti-saturation CPU ; suite `-race` verte sur PostgreSQL 18.4.
 
 ## Mini-tâches et demandes de contrat
 
@@ -47,6 +49,8 @@ pas en ajoutant un bloc en fin de fichier. `open` → `accepted` / `refused` /
 | MT-01 | Agent B → Agent A | Les trois POST F02A renvoient leurs erreurs en `text/plain` via `http.Error`. Après un 409 le garage lit « appointment conflict » en police brute, alors que le contrat F02A dit « F02B renders human-readable HTML from these outcomes ». Deux options : (a) rediriger en 303 vers `/app/planning?day=...&error=<code>` et je rends le message, (b) tu m'appelles pour rendre la page d'erreur. Je préfère (a) : ça reste ton handler, aucun couplage de vue chez toi, et un rechargement reste correct. | open |
 | MT-02 | Agent B → Agent A | `internal/adapters/httpserver/handler.go` et `internal/di/di.go` sont devenus notre point de collision : trois fois aujourd'hui nos deux diffs ont atterri dans le même hunk. Proposition : chaque groupe de handlers expose `Register(mux *http.ServeMux)` (comme `handlers.Site` le fait déjà) et `httpserver.New` n'appelle plus que ces `Register`. Chacun édite alors son propre fichier. Ton appel, c'est ton fichier contracté. | open |
 | MT-03 | Agent B → Agent A | Vérification demandée, pas un changement : `internal/adapters/handlers/appointment_today_provider.go` passe `entry.Start` tel quel à la vue F04. Si pgx rend `timestamptz` en UTC, le dashboard affiche des heures UTC au lieu de l'heure atelier. Mon adaptateur planning convertit explicitement via `.In(day.Date.Location())`. Je n'ai pas pu l'observer en vrai (`/app` est dégradé sans tenant). | open |
+| MT-04 | Agent A → contrats F02A/F04 | F09 rend l'authentification navigateur effective : sans session valide, toutes les routes `/app` répondent désormais `401`, avant tout handler. Cela remplace explicitement le `200` dégradé F04 sans tenant et lève l'interdiction de déploiement public des mutations F02A une fois la protection CSRF active. | accepted — mini-tâche F09, amendements documentés avant implémentation |
+| MT-05 | Review F09 → Agent A | Les emails inconnus exécutent volontairement PBKDF2 mais contournent le verrouillage par compte : borner le endpoint à 30 dérivations/minute et 2 simultanées par processus, avec `429`/`Retry-After`, avant de considérer F09 déployable sur le petit VPS. | done — contrat, limiteur et tests concurrence/budget/reset livrés |
 
 | ID | Feature | Owner | Depends on | Owned paths | Contract/API frozen | Tests / acceptance | Status |
 |---|---|---|---|---|---|---|---|
@@ -60,6 +64,7 @@ pas en ajoutant un bloc en fin de fichier. `open` → `accepted` / `refused` /
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
 | F07 | Site public + SEO (PRD §11) | Agent B | - | `internal/web/views/site*`, `internal/adapters/handlers/site*.go`, `assets/src/css/site.css`, `assets/src/css/app.css` (un `@import`), `internal/adapters/httpserver/handler.go` (une ligne de montage) | routes `/`, `/fonctionnalites`, `/tarifs`, `/garages`, `/demo`, `/contact`, `/mentions-legales`, `/confidentialite`, `/cgv`, `/cgu`, `/robots.txt`, `/sitemap.xml` — aucun `tenant_id`, aucun état serveur | 12 tests ; SEO head par page, sitemap trié, footer sans 404, CTA sans self-link ; smoke sur PostgreSQL 18.4 réel ; screenshots 1280 + 380 px réels, clair et sombre | REVIEW |
 | F08 | Demande vocale de rappel/devis | Agent A | F01,F03 | `docs/contracts/F08-follow-up-request.md`, `docs/DATABASE.md` (ajout F08), `docs/ELEVENLABS.md` (ajout F08), `internal/core/followup/**`, `internal/adapters/stores/postgres/followup*.go`, `internal/adapters/stores/postgres/migrations/00004_follow_up_request.sql`, `internal/adapters/voice/followup*.go`, `internal/adapters/httpserver/handler.go` (une route), `internal/di/**` (wiring uniquement) | `docs/contracts/F08-follow-up-request.md` (frozen 2026-07-30); tenant depuis Bearer, liaison client par téléphone côté serveur | connu/inconnu + tenant isolation + rejeu identique + conflit + erreurs bornées | REVIEW |
+| F09 | Authentification staff et sessions navigateur | Agent A | F01,F02A,F04 | `docs/contracts/F09-authentication.md`, `docs/SECURITY.md`, `docs/DATABASE.md` (ajout F09), amendements auth uniquement aux contrats F02A/F04, `internal/core/auth/**`, `internal/adapters/stores/postgres/auth*.go`, `internal/adapters/stores/postgres/migrations/00005_authentication.sql`, `internal/adapters/handlers/auth*.go`, `internal/adapters/httpserver/**` (middleware/routing auth uniquement), `internal/di/**` (wiring uniquement) | `docs/contracts/F09-authentication.md` (gelé 2026-07-30); email résout le tenant côté serveur; cookie opaque, secret non stocké; `/app` protégé uniformément | mot de passe/session + login/logout + CSRF + expiration/révocation + isolation tenant + PostgreSQL 18 réel | REVIEW |
 
 PR #1 was merged by the founder as `229598e` on `main`. The local
 `feat/foundation-postgres-css` HEAD is the second parent of that merge and has no
@@ -683,6 +688,42 @@ Ownership : aucun fichier UI/CSS/planning modifié. La DI et le numéro de
 migration sont libérés après ce passage en REVIEW.
 ```
 
+## Open handoff — Agent A to Agent B, F09 review, 2026-07-30
+
+```
+Feature: F09 Authentification staff et sessions navigateur
+From: Agent A (backend)
+To: Agent B (frontend/reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Contrat gelé avant code : docs/contracts/F09-authentication.md
+Routes backend : POST /auth/login, POST /auth/logout
+Le GET de connexion reste à la future UI ; aucun fichier templ/CSS/layout touché.
+
+Garanties :
+  email normalisé -> staff + tenant persistés, jamais de tenant_id reçu du form
+  PBKDF2-HMAC-SHA-256 stdlib, 600k, sel 16 octets, comparaison constant-time
+  cookie __Host- Secure/HttpOnly/SameSite=Strict, token aléatoire 32 octets
+  seul SHA-256(token) en base, expiration 12h, logout révoqué côté serveur
+  /app entier derrière session -> identité staff + tenant injectés ensemble
+  http.CrossOriginProtection sur les POST navigateur ; routes voix inchangées
+  5 échecs -> lock 15 min ; inconnus font aussi la dérivation anti-enumeration
+  budget CPU global mono-instance : 30/min, 2 simultanées, puis 429 Retry-After
+
+Review indépendante :
+  HIGH SQLSTATE 42804 sur le CASE de lock trouvé contre PostgreSQL réel, corrigé
+  par casts explicites et test resserré ; MEDIUM DoS PBKDF corrigé via MT-05 ;
+  LOW exposition du mot de passe/hash dans le seam store corrigé ; re-review PASS.
+
+Validation :
+  TEST_DATABASE_DSN=PostgreSQL-18.4 go test -count=1 -race ./...
+  parcours DI complet : 401 -> login -> /app tenant-scopé 200 -> logout -> 401
+  go vet ./... ; go build ./... ; docker build ; git diff --check
+
+Ownership : les diffs locaux Agent B dans planning_test.go, planning.go,
+planning.templ et site_layout.templ sont restés non stagés et hors commit F09.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -690,8 +731,8 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | - | - | wiring F08 terminé ; prochain owner doit CLAIM avant édition |
-| DB migration numbering | - | - | migration F08 `00004_follow_up_request.sql` terminée ; prochain owner doit CLAIM |
+| DI root | - | - | wiring F09 terminé ; prochain owner doit CLAIM avant édition |
+| DB migration numbering | - | - | migration F09 `00005_authentication.sql` terminée ; prochain owner doit CLAIM |
 | `compose.yml` | - | - | F03 terminé ; prochain owner doit CLAIM avant édition |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
 | global layout/tokens | Agent B | F06 MERGED | global UI contract |

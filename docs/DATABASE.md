@@ -15,7 +15,8 @@ the HTTP server starts:
 - `00002_tenant_customer_vehicle.sql`: tenants, customers and vehicles;
 - `00003_appointment.sql`: openings, appointments and idempotent scheduling
   commands;
-- `00004_follow_up_request.sql`: tenant-scoped callback and quote requests.
+- `00004_follow_up_request.sql`: tenant-scoped callback and quote requests;
+- `00005_authentication.sql`: staff credentials and browser sessions.
 
 ## Tenant, customer and vehicle schema
 
@@ -57,6 +58,13 @@ idempotency key and retain a hash of normalized mutable input. Their optional
 customer link is resolved by `(tenant_id, phone_e164)` inside the insert; the
 HTTP/voice caller cannot submit a customer or tenant ID.
 
+Staff email is globally unique in the single-membership MVP, so login resolves
+the tenant entirely on the server. Browser sessions carry both staff and tenant
+IDs behind a composite foreign key to `staff_users (tenant_id, id)`; a session
+cannot be attached to a staff member through another tenant. Only a SHA-256
+digest of the opaque cookie token is stored. Expiry is enforced in every lookup,
+independently of eventual deletion of expired rows.
+
 ## Integration tests
 
 CI starts `postgres:18.4-bookworm` and supplies `TEST_DATABASE_DSN`. Locally,
@@ -71,7 +79,9 @@ The integration suite verifies:
 - the same phone and plate can exist in different tenants;
 - tenant B cannot find tenant A's private phone;
 - tenant B cannot attach a vehicle to tenant A's customer;
-- duplicate phone or plate in one tenant returns a domain conflict.
+- duplicate phone or plate in one tenant returns a domain conflict;
+- session expiry/revocation and the composite staff/tenant boundary;
+- persistent staff lockout after five failed password attempts.
 
 ## Official references
 

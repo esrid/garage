@@ -18,19 +18,26 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool, authentication *handlers.Authentication, sessions sessionVerifier) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
 	mux.HandleFunc("GET /readyz", h.ready)
 
-	mux.HandleFunc("GET /app", dashboard.Page)
-	mux.HandleFunc("GET /app/today", dashboard.Fragment)
-	mux.HandleFunc("GET /app/planning", planning.Page)
-	mux.HandleFunc("GET /app/planning/day", planning.Fragment)
-	mux.HandleFunc("POST /app/appointments", appointments.Book)
-	mux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
-	mux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)
+	appMux := http.NewServeMux()
+	appMux.HandleFunc("GET /app", dashboard.Page)
+	appMux.HandleFunc("GET /app/today", dashboard.Fragment)
+	appMux.HandleFunc("GET /app/planning", planning.Page)
+	appMux.HandleFunc("GET /app/planning/day", planning.Fragment)
+	appMux.HandleFunc("POST /app/appointments", appointments.Book)
+	appMux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
+	appMux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)
+	protectedApp := requireStaffSession(sessions, appMux)
+	mux.Handle("/app", protectedApp)
+	mux.Handle("/app/", protectedApp)
+
+	mux.HandleFunc("POST /auth/login", authentication.Login)
+	mux.HandleFunc("POST /auth/logout", authentication.Logout)
 	mux.Handle("POST /voice/tools/customer-lookup", customerLookup)
 	mux.HandleFunc("POST /voice/tools/appointment-availability", appointmentTools.Availability)
 	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
@@ -42,7 +49,7 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *ha
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 
-	return requestID(recoverPanic(accessLog(securityHeaders(mux))))
+	return requestID(recoverPanic(accessLog(securityHeaders(crossOriginProtection(mux)))))
 }
 
 func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
