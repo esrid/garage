@@ -19,7 +19,19 @@
 | F03 | Voice lookup customer tool | Agent A | F01 | `internal/adapters/voice/**` | webhook/tool schema | known + unknown phone | READY |
 | F04 | Dashboard Today | Agent B | F02 | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | CLAIMED |
 | F05 | Voice book appointment | Agent A | F02,F03 | voice tool + booking adapter | `SchedulingProvider.Book` | recheck + idempotency | BLOCKED |
-| F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke | IN_PROGRESS |
+| F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | REVIEW |
+
+Branch `feat/foundation-postgres-css` (pushed) holds F00 + F06 + docs, four
+commits, one subject each. Not merged to `main`: that needs the founder's
+explicit go-ahead.
+
+Cross-review of F00 by Agent B (AGENTS.md §16) — **passed**. `go build`, `go vet`
+and `go test -race ./...` clean. The migration test skips without a database, so
+it was run against a live `postgres:18.4-bookworm`: migrations apply and are
+idempotent on reopen. The binary was booted against that database and `/healthz`
+and `/readyz` both returned 200. Note `compose.yml` maps no port for the
+`postgres` service, so the integration test cannot reach it via compose alone —
+Agent A's call whether that is intentional.
 
 Notes (Agent B):
 - F04/F06 owned paths said `web/...`; no such directory exists. templ output is Go
