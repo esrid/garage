@@ -170,6 +170,14 @@ Cross-origin rejection remains `403`; missing/invalid sessions follow the F12
 browser/API response matrix in `F09-authentication.md`. Success redirects,
 routes and form fields are unchanged. This amendment resolves mini-task MT-01.
 
+#### Amendment 2026-07-30 — F17 alert focus
+
+Each failed mutation redirect appends the fixed fragment `#planning-alert` to
+the four targets above. The fragment is never derived from form data or an error
+and is not sent back to the server. It lets the browser focus F15's existing
+`id="planning-alert" tabindex="-1"` error message after navigation. Successful
+mutation redirects keep their existing day URL without a fragment.
+
 ## F04 dashboard adapter
 
 The adapter must satisfy the frozen seam exactly:

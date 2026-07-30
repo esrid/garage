@@ -161,5 +161,5 @@ func writeAppointmentError(w http.ResponseWriter, r *http.Request, err error) {
 		code = "conflict"
 	}
 	query := url.Values{"error": {code}}
-	http.Redirect(w, r, "/app/planning?"+query.Encode(), http.StatusSeeOther)
+	http.Redirect(w, r, "/app/planning?"+query.Encode()+"#planning-alert", http.StatusSeeOther)
 }

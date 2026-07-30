@@ -156,11 +156,11 @@ func TestAppointmentBookMapsContractErrors(t *testing.T) {
 		wantLocation string
 	}{
 		{"missing tenant", false, nil, nil, http.StatusUnauthorized, ""},
-		{"invalid form", true, nil, func(form url.Values) { form.Set("duration_minutes", "20") }, http.StatusSeeOther, "/app/planning?error=invalid"},
-		{"not found", true, &domain.NotFoundError{Entity: "customer"}, nil, http.StatusSeeOther, "/app/planning?error=not_found"},
-		{"capacity", true, appointment.ErrSlotUnavailable, nil, http.StatusSeeOther, "/app/planning?error=conflict"},
-		{"idempotency", true, appointment.ErrIdempotencyConflict, nil, http.StatusSeeOther, "/app/planning?error=conflict"},
-		{"provider unavailable", true, errors.New("database down"), nil, http.StatusSeeOther, "/app/planning?error=unavailable"},
+		{"invalid form", true, nil, func(form url.Values) { form.Set("duration_minutes", "20") }, http.StatusSeeOther, "/app/planning?error=invalid#planning-alert"},
+		{"not found", true, &domain.NotFoundError{Entity: "customer"}, nil, http.StatusSeeOther, "/app/planning?error=not_found#planning-alert"},
+		{"capacity", true, appointment.ErrSlotUnavailable, nil, http.StatusSeeOther, "/app/planning?error=conflict#planning-alert"},
+		{"idempotency", true, appointment.ErrIdempotencyConflict, nil, http.StatusSeeOther, "/app/planning?error=conflict#planning-alert"},
+		{"provider unavailable", true, errors.New("database down"), nil, http.StatusSeeOther, "/app/planning?error=unavailable#planning-alert"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestAppointmentBookRejectsWrongContentTypeAndOversizedBody(t *testing.T) {
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
 		newMutationHandler(&schedulingStub{}).Book(response, request)
-		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid" {
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid#planning-alert" {
 			t.Fatalf("status = %d location=%q", response.Code, response.Header().Get("Location"))
 		}
 	})
@@ -198,7 +198,7 @@ func TestAppointmentBookRejectsWrongContentTypeAndOversizedBody(t *testing.T) {
 		request := appointmentRequest(t, "/app/appointments", url.Values{"note": {strings.Repeat("x", maxAppointmentFormBytes)}}, true)
 		response := httptest.NewRecorder()
 		newMutationHandler(&schedulingStub{}).Book(response, request)
-		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid" {
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=invalid#planning-alert" {
 			t.Fatalf("status = %d location=%q", response.Code, response.Header().Get("Location"))
 		}
 	})
@@ -226,7 +226,7 @@ func TestAppointmentRescheduleAndCancelErrorsUsePlanningRedirect(t *testing.T) {
 			request.SetPathValue("id", handlerAppointmentID)
 			response := httptest.NewRecorder()
 			test.call(newMutationHandler(&schedulingStub{err: appointment.ErrSlotUnavailable}), response, request)
-			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=conflict" {
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/app/planning?error=conflict#planning-alert" {
 				t.Fatalf("status=%d location=%q body=%q", response.Code, response.Header().Get("Location"), response.Body.String())
 			}
 		})
