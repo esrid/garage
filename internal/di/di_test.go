@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
+	"os"
 	"testing"
 	"time"
 
@@ -12,7 +12,11 @@ import (
 )
 
 func TestNewWiresReadinessSlice(t *testing.T) {
-	cfg := testConfig(filepath.Join(t.TempDir(), "app.db"))
+	dsn := os.Getenv("TEST_DATABASE_DSN")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_DSN is required for the PostgreSQL integration test")
+	}
+	cfg := testConfig(dsn)
 	app, err := New(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
