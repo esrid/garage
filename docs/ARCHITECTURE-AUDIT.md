@@ -251,10 +251,10 @@ endroit).
 
 ### Déplaçable sans risque
 
-- `core/auth` → `modules/identity/` : consommé par 2 endroits, interfaces nettes.
-- `core/conversation` + `features/{calls,usage,postcall}` → `modules/calls/` :
+- `core/auth` → `identity/` : consommé par 2 endroits, interfaces nettes.
+- `core/conversation` + `features/{calls,usage,postcall}` → un module de conversation :
   déjà cohérent, aucun import croisé.
-- `core/followup` + sa part de `postgres` → `modules/followups/`.
+- `core/followup` + sa part de `postgres` → `followup/`.
 - Les fichiers `postgres/<domaine>*.go` se découpent proprement : ils sont déjà
   nommés par domaine.
 
@@ -262,9 +262,9 @@ endroit).
 
 | Risque | Cause |
 |---|---|
-| **Élevé** | `modules/dashboard` compose rendez-vous + appels + rappels. S'il importe les trois modules et qu'un seul le réimporte, cycle. Aujourd'hui évité par des interfaces déclarées chez le consommateur : **il faut garder cette règle**. |
+| **Élevé** | `dashboard/` compose rendez-vous + appels + rappels. S'il importe les trois modules et qu'un seul le réimporte, cycle. Aujourd'hui évité par des interfaces déclarées chez le consommateur : **il faut garder cette règle**. |
 | **Élevé** | `postgres.Store` unique : le découper par module oblige à choisir entre un pool partagé injecté (facile) et des `Store` par module (implique de dupliquer `Open`, les migrations et le pool). |
-| **Moyen** | `core/tenant` est importé par 8 packages. Il devient un `shared/tenant`, sinon tout module l'importe et il redevient un `core` déguisé. |
+| **Moyen** | `core/tenant` est importé par 8 packages. Ses accesseurs de contexte (`WithID`, `IDFromContext`, 33 des 51 usages hors module) descendent dans `internal/domain/` ; le reste devient une capacité comme une autre, consommée par interface locale. Sans ça, tout module importe `tenant/` et il redevient un `core` déguisé. |
 | **Faible** | `web/views` est déjà sans import interne. |
 
 ### Tests qui casseront
@@ -285,7 +285,7 @@ changements d'import.
 
 `internal/di/di.go` est aujourd'hui **une fonction de 60 lignes** qui construit
 23 objets. Une réorganisation par module la remplace par N appels
-`modules/<x>.Wire(pool)`. C'est le fichier le plus impacté, et le seul dont la
+`<capacité>.Wire(pool)` composés dans `app/app.go`. C'est le fichier le plus impacté, et le seul dont la
 réécriture est structurelle plutôt que mécanique.
 
 ---
@@ -364,7 +364,7 @@ découpage par capacité ne s'applique pas au schéma.
 | Phase | Contenu | Sortie vérifiable | Risque |
 |---|---|---|---|
 | **0** | Option A en entier (§9) : remonter capacité et créneaux dans le domaine, une seule source pour les durées, clé d'idempotence hors de la vue | suite verte, règles de capacité testées **sans base** | faible |
-| **1** | `platform/` : `postgres` (Open, pool, migrations), `httpserver`, `voice`, `config`, `sessions`, `logging` | build vert, aucun symbole renommé | faible |
+| **1** | `platform/` : `postgres` (Open, pool, migrations), `httpserver`, `voice`, `config`, `sessions`, `logging`, `web` (shell, layout, `Render`, a11y) ; `internal/domain/` conservé comme seule exception partagée | build vert, aucun symbole renommé, screenshot d'une page rendue | faible |
 | **2** | `tenant/` — le plus transverse, il conditionne tous les autres | contexte tenant et réglages inchangés de bout en bout | moyen |
 | **3** | `identity/` — le plus isolé, 2 consommateurs | connexion réelle en navigateur | faible |
 | **4** | `conversation/` (historique, consommation, webhook post-appel) | webhook signé + pages historique et consommation | moyen |

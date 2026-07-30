@@ -364,3 +364,63 @@ comptent pour ce guide :
 Tant que la migration n'est pas faite, le code neuf suit ce guide **dans le
 module le plus proche de sa capacité**, et l'audit sert de carte entre les deux
 dispositions.
+
+---
+
+## Transition
+
+À lire avant de déplacer le premier fichier. Cette section tranche ce que les
+règles ci-dessus laissent ouvert ; sans elle, chaque agent invente sa propre
+réponse et la migration diverge.
+
+### Ordre
+
+Le plan par phases est dans [`ARCHITECTURE-AUDIT.md`](ARCHITECTURE-AUDIT.md)
+§10. **Phase 0 d'abord** : elle corrige les seuls défauts prouvés — règles
+métier coincées dans l'adaptateur SQL, borne de durée écrite quatre fois — sans
+déplacer un paquet. `appointment/` passe **en dernier** : deux entrées, le plus
+gros module, le plus coûteux à casser.
+
+**Une phase = un commit.** Une phase qui touche plus de trois fichiers de test
+hors imports est trop grosse : la couper.
+
+### Les quatre cases que le guide ne remplissait pas
+
+| Ce qui existe | Où ça va | Pourquoi |
+|---|---|---|
+| `internal/web/{views,page,a11y}` — shell, layout, panel, hero, `Render`, `RequestedDay`, `Origin` | `platform/web/` | partagé par tous les modules et **sans aucune règle métier** : c'est de l'infrastructure de présentation, la règle 8 est respectée |
+| `internal/core/domain` — `NormalizePhone`, types d'erreur | `internal/domain/`, **seule exception partagée autorisée** | `NormalizePhone` *est* une règle métier : elle ne peut pas aller dans `platform/` (règle 8), et la dupliquer dans `customer`, `followup` et `tenant` violerait la règle 10. Un module peut donc importer `domain/`, et **rien d'autre** hors de lui-même |
+| migrations SQL | `platform/postgres/migrations/` | une base, une séquence numérotée globalement. Le découpage par capacité ne s'applique pas au schéma, même si chaque module garde son propre `postgres.go` |
+| `tenant.WithID` / `tenant.IDFromContext` et leur clé de contexte | `internal/domain/` | mesuré : **33 des 51 usages de `tenant` hors du module** ne sont que ces deux fonctions. Laisser tous les modules importer `tenant/` pour ça en referait un `core` déguisé. L'**identifiant** du tenant est ambiant, la **capacité** tenant ne l'est pas : le module `tenant/` garde son service, ses réglages et son quota, et qui en a besoin déclare une interface locale comme n'importe quel autre module |
+
+Aucun autre paquet transverse ne se crée en cours de route. Si un cinquième
+candidat apparaît, il se discute avant d'exister.
+
+Concrètement, un module ne peut importer que `internal/domain/` et
+`platform/*`. Tout autre import d'un module frère est un défaut de conception,
+pas un raccourci.
+
+### Deux pièges mécaniques, déjà payés une fois
+
+**templ** — déplacer un `.templ` ne suffit pas : le `_templ.go` généré reste à
+côté de l'ancien emplacement, compile encore, et la page rendue ne correspond
+plus au source. Après chaque déplacement de vue : supprimer les `_templ.go`
+orphelins, relancer `templ generate`, **et prendre un screenshot**.
+
+**Renommage global d'identifiants** — un `sed` ou un renommage IDE appliqué à
+tout l'arbre réécrit aussi les **noms de classes CSS à l'intérieur des chaînes**
+(`class="panel-grid"` → `"Panel-grid"`). Le compilateur ne le voit pas, les
+tests passent, la page casse. Un outil de renommage doit ignorer tout segment
+entre guillemets.
+
+### Ce qui doit être vert avant de passer à la phase suivante
+
+```
+go build ./... && go vet ./...
+TEST_DATABASE_DSN=<base 18.4 vierge> go test -count=1 -race ./...
+```
+
+`TestMigrationsRunOnAVirginDatabase` doit passer : il crée une base réellement
+vide et la migre depuis rien. Puis l'application démarre sur cette base et sert
+`/`, `/healthz`, `/readyz`, `/login`. Toute vue touchée : screenshot inspecté,
+jamais « ça devrait aller ».

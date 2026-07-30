@@ -70,9 +70,16 @@ internal/
 
 ### État du dépôt
 L'arbre actuel (`internal/{core,features,adapters,web}`) ne suit pas encore cette
-doctrine. L'écart, son coût et le plan par phases sont mesurés dans
+doctrine. L'écart et son coût sont mesurés dans
 [`docs/ARCHITECTURE-AUDIT.md`](docs/ARCHITECTURE-AUDIT.md). Le code neuf suit le
 guide dans le module le plus proche de sa capacité.
+
+**Avant de déplacer le premier fichier**, lire la section « Transition » du
+guide : elle fixe l'ordre des phases (phase 0 d'abord, `appointment/` en
+dernier, une phase = un commit), tranche les trois paquets transverses
+(`platform/web/`, `internal/domain/`, `platform/postgres/migrations/`) et nomme
+deux pièges déjà payés une fois — les `_templ.go` orphelins et le renommage
+global qui réécrit les classes CSS dans les chaînes.
 
 ### Standard library d'abord
 Avant d'écrire un helper, un parseur, un validateur ou une abstraction, vérifier
