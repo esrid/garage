@@ -10,10 +10,11 @@ ALTER TABLE tenants
     ADD COLUMN monthly_minutes_quota integer NOT NULL DEFAULT 750
         CONSTRAINT tenants_quota_positive CHECK (monthly_minutes_quota > 0);
 
--- Usage is read per tenant and per month, always over the same window.
-CREATE INDEX conversations_tenant_started_idx
-    ON conversations (tenant_id, started_at);
+-- Usage is read per tenant and per month, always over the same window, and
+-- 00006 already indexes exactly that: conversations_tenant_started_idx on
+-- (tenant_id, started_at DESC, id DESC). A btree serves a range scan in either
+-- direction, so that index covers this read and creating a second one here made
+-- every virgin database fail to migrate.
 
 -- +goose Down
-DROP INDEX IF EXISTS conversations_tenant_started_idx;
 ALTER TABLE tenants DROP COLUMN monthly_minutes_quota;
