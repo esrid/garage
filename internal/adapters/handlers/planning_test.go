@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/domain"
+	"github.com/esrid/garage/internal/web/views"
 )
 
 // Martinique as a fixed zone rather than time.LoadLocation: the tests must not
@@ -117,10 +119,10 @@ func TestPlanningPageRendersTheDay(t *testing.T) {
 	for _, want := range []string{
 		"jeudi 30 juillet 2026",
 		"America/Martinique",
-		"08:00 – 12:00",      // opening
-		"2 véhicules",        // capacity, plural
-		"08:00 – 09:00",      // free slot for the default hour
-		"Marie Lubin",        // appointment rows
+		"08:00 – 12:00", // opening
+		"2 véhicules",   // capacity, plural
+		"08:00 – 09:00", // free slot for the default hour
+		"Marie Lubin",   // appointment rows
 		"AB-123-CD",
 		"Vidange",
 		"Confirmé",
@@ -389,16 +391,52 @@ func formFor(t *testing.T, body, action string) string {
 	return body[start : start+end]
 }
 
-// TestWritePlanningPreview dumps the rendered page so it can be opened in a
-// browser and looked at. Skipped unless PLANNING_PREVIEW names a file: a test
-// suite does not write to disk by default.
-func TestWritePlanningPreview(t *testing.T) {
-	path := os.Getenv("PLANNING_PREVIEW")
-	if path == "" {
-		t.Skip("set PLANNING_PREVIEW=<file> to dump the planning page")
+// TestWritePreviews dumps the rendered pages so they can be opened in a browser,
+// screenshotted, or run through an accessibility reporter. Skipped unless
+// PREVIEW_DIR names a directory: a test suite does not write to disk by default.
+func TestWritePreviews(t *testing.T) {
+	dir := os.Getenv("PREVIEW_DIR")
+	if dir == "" {
+		t.Skip("set PREVIEW_DIR=<directory> to dump the app pages")
 	}
-	body := getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.Bytes()
-	if err := os.WriteFile(path, body, 0o600); err != nil {
-		t.Fatalf("write preview: %v", err)
+	pages := map[string][]byte{
+		"planning.html":  getPlanning(t, newTestPlanning(fullPlanningStub()).Page, "/app/planning").Body.Bytes(),
+		"dashboard.html": get(t, newTestDashboard(&stubProvider{data: dashboardPreviewData()}).Page, "/app").Body.Bytes(),
+		// The public site needs no dependency, so it dumps straight from its mux.
+		"home.html":    fetch(t, "/").Body.Bytes(),
+		"pricing.html": fetch(t, "/tarifs").Body.Bytes(),
+	}
+	for name, body := range pages {
+		if err := os.WriteFile(filepath.Join(dir, name), body, 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+}
+
+// dashboardPreviewData fills the three dashboard panels. Calls and tasks have no
+// backend yet, so this is the only way to look at those panels rendered.
+func dashboardPreviewData() views.Today {
+	return views.Today{
+		Day: planningNow,
+		Calls: []views.Call{
+			{
+				ID: "call-1", At: at(8, 12), Duration: 4*time.Minute + 20*time.Second,
+				CustomerName: "Marie Lubin", Phone: "0596000001",
+				Subject: "Vidange + révision", Outcome: "booked",
+			},
+			{
+				ID: "call-2", At: at(9, 3), Duration: 2 * time.Minute,
+				Phone: "0696000002", Subject: "Devis embrayage", Outcome: "quote",
+			},
+		},
+		Appointments: []views.Appointment{{
+			ID: "rdv-1", Start: at(9, 0), End: at(10, 0),
+			CustomerName: "Marie Lubin", Vehicle: "Clio IV", Plate: "AB-123-CD",
+			Service: "Vidange", Status: "confirmed",
+		}},
+		Tasks: []views.Task{{
+			ID: "task-1", CreatedAt: at(9, 5), Kind: "quote",
+			Phone: "0696000002", Note: "Rappeler pour le devis embrayage",
+		}},
 	}
 }

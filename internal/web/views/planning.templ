@@ -75,7 +75,11 @@ templ PlanningDay(planning Planning) {
 						}
 					</select>
 				</div>
-				<button class="btn btn-secondary" type="submit">Voir les créneaux</button>
+				// The id is not decoration: after an htmx swap this button no longer
+				// exists, and htmx 2.0.10 restores focus only to an element carrying
+				// the same id. Without it a keyboard user is dropped back to the top
+				// of the document on every filter change.
+				<button class="btn btn-secondary" type="submit" id="planning-duration-submit">Voir les créneaux</button>
 			</form>
 			<div class="panel-grid">
 				@planningOpenings(planning)
@@ -192,12 +196,19 @@ templ planningAppointments(planning Planning) {
 // deliberate second gesture instead of one stray click in a list.
 templ planningRowActions(planning Planning, item Appointment) {
 	<details class="item-actions">
-		<summary>Déplacer ou annuler</summary>
+		// Every control below carries the row's identity in its accessible name.
+		// Three rows exposing the same "Annuler le rendez-vous" is how a screen
+		// reader user cancels the wrong vehicle.
+		<summary>
+			Déplacer ou annuler
+			<span class="visually-hidden">{ " — " + rowContext(item) }</span>
+		</summary>
 		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/reschedule") }>
 			if options := rescheduleOptions(planning, item); len(options) > 0 {
 				<div class="field">
 					<label class="field-label" for={ "move-" + item.ID }>
 						{ "Nouveau créneau (" + minutesLabel(appointmentMinutes(item)) + ")" }
+						<span class="visually-hidden">{ " pour " + rowContext(item) }</span>
 					</label>
 					<select class="select" id={ "move-" + item.ID } name="start_at">
 						for _, slot := range options {
@@ -207,7 +218,10 @@ templ planningRowActions(planning Planning, item Appointment) {
 				</div>
 				<input type="hidden" name="duration_minutes" value={ strconv.Itoa(appointmentMinutes(item)) }/>
 				<input type="hidden" name="idempotency_key" value={ rescheduleKey(item) }/>
-				<button class="btn btn-secondary" type="submit">Déplacer</button>
+				<button class="btn btn-secondary" type="submit">
+					Déplacer
+					<span class="visually-hidden">{ " le rendez-vous de " + rowContext(item) }</span>
+				</button>
 			} else {
 				<p class="field-hint">
 					{ "Aucun autre créneau de " + minutesLabel(appointmentMinutes(item)) + " sur cette journée." }
@@ -216,7 +230,10 @@ templ planningRowActions(planning Planning, item Appointment) {
 		</form>
 		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/cancel") }>
 			<input type="hidden" name="idempotency_key" value={ cancelKey(item) }/>
-			<button class="btn btn-quiet" type="submit">Annuler le rendez-vous</button>
+			<button class="btn btn-quiet" type="submit">
+				Annuler le rendez-vous
+				<span class="visually-hidden">{ " de " + rowContext(item) }</span>
+			</button>
 		</form>
 	</details>
 }

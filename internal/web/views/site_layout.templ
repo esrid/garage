@@ -34,7 +34,14 @@ templ SiteLayout(meta SiteMeta, body templ.Component) {
 			// The public shell reuses the app shell classes: one visual system, and
 			// a prospect who signs up recognises the product.
 			<header class="app-header">
-				<a class="app-brand" href="/">{ siteName }</a>
+				// The brand is the only link to "/", so on the home page it is the one
+				// that must say so: without this, a screen reader user on the landing
+				// page gets no "current page" anywhere in the shell.
+				if meta.Path == "/" {
+					<a class="app-brand" href="/" aria-current="page">{ siteName }</a>
+				} else {
+					<a class="app-brand" href="/">{ siteName }</a>
+				}
 				<nav class="app-nav" aria-label="Navigation du site">
 					for _, link := range SiteNav {
 						@navLink(link.Path, link.Label, meta.Path)

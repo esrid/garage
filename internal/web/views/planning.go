@@ -112,6 +112,20 @@ func appointmentMinutes(item Appointment) int {
 	return int(item.End.Sub(item.Start).Minutes())
 }
 
+// rowContext names the appointment a control acts on, for the accessible name.
+//
+// Two rows must never expose the same accessible name: tabbing through a day
+// otherwise announces "Annuler le rendez-vous" three times with nothing to tell
+// them apart, and someone cancels the wrong vehicle. Sighted users get the
+// context from the row above; screen readers get it from a visually-hidden span.
+func rowContext(item Appointment) string {
+	who := strings.TrimSpace(item.CustomerName)
+	if who == "" {
+		who = "client inconnu"
+	}
+	return who + ", " + hourLabel(item.Start)
+}
+
 // planningActionable reports whether the desk may still move or cancel a row.
 // The allowed transitions are frozen in docs/contracts/F02A-planning.md: only
 // pending and confirmed lead to cancelled or to another time. Showing buttons
