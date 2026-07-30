@@ -22,6 +22,7 @@ func a11yPages(t *testing.T) map[string]string {
 		"/":                 fetch(t, "/").Body.String(),
 		"/tarifs":           fetch(t, "/tarifs").Body.String(),
 		"/mentions-legales": fetch(t, "/mentions-legales").Body.String(),
+		"/login":            loginPage(t, "/login?error=invalid&next=/app/planning").Body.String(),
 	}
 }
 
@@ -132,15 +133,20 @@ func TestEveryFormControlHasALabel(t *testing.T) {
 	}
 }
 
-// At most one element may claim to be the current page, and a page that is in the
-// shell's navigation must claim one.
+// A page reachable from the shell's navigation marks itself once. A page that is
+// not in the navigation marks nothing: claiming to be the current nav entry when
+// no entry leads here is a lie about where the visitor is.
 func TestCurrentPageIsMarkedExactlyOnce(t *testing.T) {
+	inNavigation := map[string]bool{"/": true, "/tarifs": true, "/app": true, "/app/planning": true, "/login": true}
+
 	for path, body := range a11yPages(t) {
-		switch count := strings.Count(body, `aria-current="page"`); {
-		case count > 1:
-			t.Errorf("%s marks %d elements as the current page", path, count)
-		case count == 0 && path != "/mentions-legales":
-			t.Errorf("%s marks no current page in the shell", path)
+		count := strings.Count(body, `aria-current="page"`)
+		want := 0
+		if inNavigation[path] {
+			want = 1
+		}
+		if count != want {
+			t.Errorf("%s marks %d elements as the current page, want %d", path, count, want)
 		}
 	}
 }

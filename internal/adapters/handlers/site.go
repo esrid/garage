@@ -129,7 +129,9 @@ func (s *Site) robots(w http.ResponseWriter, r *http.Request) {
 	//
 	// No trailing slash: Disallow matches on prefix, so "/app" covers /app itself
 	// and everything under it. "/app/" would have left the dashboard crawlable.
-	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /voice\nSitemap: %s/sitemap.xml\n", origin(r))
+	// /login is public but worthless in an index, and a crawler hitting a
+	// credentials form is noise in the logs.
+	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /voice\nDisallow: /login\nSitemap: %s/sitemap.xml\n", origin(r))
 }
 
 type sitemapURL struct {

@@ -33,6 +33,11 @@ templ Layout(title string, currentPath string) {
 					@navLink("/app", "Aujourd'hui", currentPath)
 					@navLink("/app/planning", "Planning", currentPath)
 				</nav>
+				// A form, not a link: F09 revokes the session on POST /auth/logout, and
+				// a GET logout can be fired by any third-party image tag.
+				<form class="app-logout" method="post" action="/auth/logout">
+					<button class="btn btn-quiet" type="submit">Se déconnecter</button>
+				</form>
 			</header>
 			<main class="app-main" id="main">
 				{ children... }

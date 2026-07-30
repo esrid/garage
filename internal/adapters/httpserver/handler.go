@@ -43,9 +43,11 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *ha
 	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
 	mux.Handle("POST /voice/tools/follow-up-request", followUpTool)
 
-	// The public site (F07) owns "/" and the legal pages. It has no dependencies,
-	// so it is built here instead of the DI root, which Agent A holds for F05.
+	// The public site (F07) owns "/" and the legal pages, and the login page (F13)
+	// is where the F09 middleware sends a browser without a session. Neither has a
+	// dependency, so both are built here rather than in the DI root.
 	handlers.NewSite().Register(mux)
+	handlers.NewLogin().Register(mux)
 
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 

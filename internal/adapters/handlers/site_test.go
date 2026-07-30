@@ -19,6 +19,9 @@ import (
 func siteMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	NewSite().Register(mux)
+	// The router mounts both, and the site shell links to /login: a harness
+	// without it would report a 404 the real server does not have.
+	NewLogin().Register(mux)
 	return mux
 }
 

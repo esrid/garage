@@ -46,6 +46,10 @@ templ SiteLayout(meta SiteMeta, body templ.Component) {
 					for _, link := range SiteNav {
 						@navLink(link.Path, link.Label, meta.Path)
 					}
+					// Not in SiteNav: the login page is not marketing content, it stays
+					// out of the sitemap and out of the footer. But it has to be
+					// reachable — otherwise the only way in is an expired session.
+					@navLink("/login", "Connexion", meta.Path)
 				</nav>
 			</header>
 			<main class="app-main" id="main">

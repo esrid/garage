@@ -582,3 +582,23 @@ a {
     background: var(--color-danger-surface);
   }
 }
+
+/* ------------------------------------------------------------- login --- */
+
+/* Pushed to the trailing edge, after the navigation. */
+.app-logout {
+  margin-inline-start: var(--space-2);
+}
+
+.login-section {
+  /* Shorter than a marketing section: the default rhythm leaves a hole between
+   * the title and the form on a page with nothing else in it. */
+  max-width: 26rem;
+  margin-block-start: var(--space-6);
+}
+
+.login-form {
+  display: grid;
+  gap: var(--space-4);
+  margin-block-end: var(--space-4);
+}
