@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
 const connectTimeout = 5 * time.Second
@@ -66,6 +67,17 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) (err error) {
 		return fmt.Errorf("postgres: migration filesystem: %w", err)
 	}
 
+	// A session-level advisory lock: every process that opens this database runs
+	// the migrations, and two of them starting together raced - one created an
+	// index the other then failed on, leaving a version half applied. The lock
+	// makes the second one wait instead of colliding, which matters in tests where
+	// several packages open the same database at once, and on a deploy where two
+	// instances start together.
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		return fmt.Errorf("postgres: migration locker: %w", err)
+	}
+
 	db := stdlib.OpenDBFromPool(pool)
 	provider, err := goose.NewProvider(
 		goose.DialectPostgres,
@@ -73,6 +85,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) (err error) {
 		migrationFS,
 		goose.WithDisableGlobalRegistry(true),
 		goose.WithLogger(goose.NopLogger()),
+		goose.WithSessionLocker(locker),
 	)
 	if err != nil {
 		providerErr := fmt.Errorf("postgres: migration provider: %w", err)

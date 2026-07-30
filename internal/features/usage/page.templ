@@ -1,0 +1,74 @@
+package usage
+
+import "strconv"
+import "github.com/esrid/garage/internal/web/views"
+
+// UsagePage is GET /app/usage. A meter, not an invoice: the workshop reads
+// minutes against what it bought, and no supplier cost is shown - that number is
+// ours, and putting it here invites reading it as a charge.
+templ UsagePage(view View) {
+	@views.Layout("Consommation — Atelier IA", "/app/usage") {
+		<div class="page-header">
+			<h1>Consommation</h1>
+			<p class="page-subtitle">{ view.MonthLabel() }</p>
+		</div>
+		<nav class="day-nav" aria-label="Choisir le mois">
+			<a class="btn btn-secondary" href={ templ.SafeURL("/app/usage?month=" + view.ShiftMonth(-1)) } rel="prev">Mois précédent</a>
+			<a class="btn btn-secondary" href={ templ.SafeURL("/app/usage?month=" + view.ShiftMonth(1)) } rel="next">Mois suivant</a>
+		</nav>
+		for _, notice := range view.Notices {
+			<p class="notice" role="status">{ notice }</p>
+		}
+		if !view.Degraded {
+			if message := view.AlertMessage(); message != "" {
+				<p class={ "notice", view.AlertTone() } role="status">{ message }</p>
+			}
+			<section class="panel usage-panel" aria-labelledby="usage-meter">
+				<div class="panel-header">
+					<h2 class="panel-title" id="usage-meter">Minutes de voix</h2>
+					<span class="panel-count">
+						{ strconv.Itoa(view.Usage.Percent()) + " %" }
+						<span class="visually-hidden">{ " du quota mensuel" }</span>
+					</span>
+				</div>
+				<div class="panel-body">
+					// <meter> is the native element for a measurement inside a known
+					// range: it carries the value, the maximum and the thresholds to
+					// assistive technology without a single ARIA attribute.
+					<meter
+						class="usage-meter"
+						min="0"
+						max={ strconv.Itoa(view.Usage.QuotaMinutes) }
+						low={ strconv.Itoa(view.Usage.QuotaMinutes * 70 / 100) }
+						high={ strconv.Itoa(view.Usage.QuotaMinutes * 85 / 100) }
+						optimum="0"
+						value={ strconv.Itoa(view.Usage.Minutes()) }
+						aria-labelledby="usage-meter"
+					>{ strconv.Itoa(view.Usage.Minutes()) + " minutes sur " + strconv.Itoa(view.Usage.QuotaMinutes) }</meter>
+					<dl class="call-facts">
+						<div>
+							<dt>Consommé</dt>
+							<dd>{ strconv.Itoa(view.Usage.Minutes()) + " min" }</dd>
+						</div>
+						<div>
+							<dt>Quota du mois</dt>
+							<dd>{ strconv.Itoa(view.Usage.QuotaMinutes) + " min" }</dd>
+						</div>
+						<div>
+							<dt>Restant</dt>
+							<dd>{ strconv.Itoa(view.Usage.RemainingMinutes()) + " min" }</dd>
+						</div>
+						<div>
+							<dt>Appels</dt>
+							<dd>{ strconv.Itoa(view.Usage.Calls) }</dd>
+						</div>
+					</dl>
+					<p class="site-note">
+						Les minutes sont arrondies à la minute supérieure par appel, comme
+						sur une facture téléphonique.
+					</p>
+				</div>
+			</section>
+		}
+	}
+}

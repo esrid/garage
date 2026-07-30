@@ -681,3 +681,47 @@ a {
 .input-narrow {
   max-width: 8rem;
 }
+
+/* --------------------------------------------------------------- usage --- */
+
+/* <meter> is the native element for a value inside a known range. Browsers style
+ * it very differently, so the bar is rebuilt with the same tokens as the rest -
+ * the element keeps its semantics either way. */
+.usage-meter {
+  display: block;
+  width: 100%;
+  height: var(--space-4);
+  margin-block-end: var(--space-5);
+  appearance: none;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+
+  &::-webkit-meter-bar {
+    background: var(--color-surface-subtle);
+    border: 0;
+    border-radius: var(--radius-full);
+  }
+
+  &::-webkit-meter-optimum-value {
+    background: var(--color-success);
+  }
+
+  &::-webkit-meter-suboptimum-value {
+    background: var(--color-warning);
+  }
+
+  &::-webkit-meter-even-less-good-value {
+    background: var(--color-danger);
+  }
+
+  /* Firefox names the same three states differently. */
+  &::-moz-meter-bar {
+    background: var(--color-success);
+  }
+}
+
+.usage-panel .panel-body {
+  padding: var(--space-4);
+}
