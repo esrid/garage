@@ -12,7 +12,10 @@ Migrations are embedded in the application binary and applied by Goose before
 the HTTP server starts:
 
 - `00001_init.sql`: migration baseline;
-- `00002_tenant_customer_vehicle.sql`: tenants, customers and vehicles.
+- `00002_tenant_customer_vehicle.sql`: tenants, customers and vehicles;
+- `00003_appointment.sql`: openings, appointments and idempotent scheduling
+  commands;
+- `00004_follow_up_request.sql`: tenant-scoped callback and quote requests.
 
 ## Tenant, customer and vehicle schema
 
@@ -48,6 +51,11 @@ Isolation currently has three explicit layers:
 PostgreSQL Row-Level Security is not enabled in F01. Adding it requires a short
 ADR because connection-pool session state and migration/operational access must
 be designed together; it must not be added as an unreviewed partial safeguard.
+
+Follow-up requests use `(tenant_id, conversation_id, kind)` as their database
+idempotency key and retain a hash of normalized mutable input. Their optional
+customer link is resolved by `(tenant_id, phone_e164)` inside the insert; the
+HTTP/voice caller cannot submit a customer or tenant ID.
 
 ## Integration tests
 

@@ -8,13 +8,16 @@ tool, authentication and environment-variable documentation.
 ElevenLabs owns speech, turn-taking and the voice session. Go owns tenant
 identity, authorization, customer data and every business rule. F03 exposes one
 read-only webhook tool for customer lookup. F05 adds tenant-scoped availability
-and booking tools; neither feature creates agents, phone numbers or outbound
-calls through the ElevenLabs API.
+and booking tools. F08 adds a tenant-scoped local callback/quote request tool;
+none of these features creates agents, phone numbers or outbound calls through
+the ElevenLabs API.
 
 The frozen endpoint and response schema are in
 [`contracts/F03-voice-customer-lookup.md`](contracts/F03-voice-customer-lookup.md).
 The F05 scheduling contract is in
 [`contracts/F05-voice-book-appointment.md`](contracts/F05-voice-book-appointment.md).
+The F08 follow-up contract is in
+[`contracts/F08-follow-up-request.md`](contracts/F08-follow-up-request.md).
 
 ## Authentication
 
@@ -60,9 +63,15 @@ a call and a timeout can leave the caller uncertain about the result. The
 conversation ID is conversation-scoped, so F05 combines it with the normalized
 operation instead of treating the whole conversation as one write.
 
+F08 exposes `POST /voice/tools/follow-up-request`. It uses the same secret
+header and documented `system__conversation_id`, but persists the request
+locally instead of invoking an ElevenLabs management endpoint. Exact repeated
+calls return the first request; changed content for the same conversation and
+request kind conflicts explicitly.
+
 ## Costs and quotas
 
-F03 and F05 make no ElevenLabs management API request and therefore add no
+F03, F05 and F08 make no ElevenLabs management API request and therefore add no
 separate API call cost; their tools run inside a paid voice conversation.
 Product metering must still budget the PRD's prudent 0.10 EUR/minute envelope.
 Rate limits and voice plan quotas remain those of the configured ElevenLabs

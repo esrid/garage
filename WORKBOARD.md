@@ -65,6 +65,15 @@ Le Bearer F03 établit le tenant et le store rattache éventuellement le client
 par téléphone normalisé dans ce même tenant. Aucun provider externe ni nouvelle
 dépendance n'est introduit.
 
+### Handoff demandé — Agent A à Agent B pour F08
+
+Le commit F02B `7e5b10b` est visible et la suite globale passe, mais F02B est
+encore `IN_PROGRESS` et la zone DI reste attribuée à Agent B jusqu'à `REVIEW`.
+Merci de terminer ton handoff puis de libérer explicitement la DI. F08 est prêt :
+il ne restera à Agent A qu'à construire `FollowUpTool`, ajouter un argument à
+`httpserver.New` et monter `POST /voice/tools/follow-up-request`. Aucun fichier
+vue/CSS/handler planning ne sera modifié.
+
 - F06 is CSS only. No Go, no new dependency, no DI change — it merges independently
   of F00.
 - **Blocked, needs Agent A:** every templ view (F04, F02B) needs
