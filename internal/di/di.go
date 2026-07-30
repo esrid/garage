@@ -46,7 +46,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	readiness := services.NewReadiness(database)
 	scheduling := appointment.NewService(database, database, database)
-	dashboard := handlers.NewDashboard(handlers.NewAppointmentTodayProvider(scheduling))
+	callHistoryProvider := handlers.NewCallHistoryProvider(conversation.NewHistoryService(database))
+	dashboardProvider := handlers.NewTodayWithCallsProvider(handlers.NewAppointmentTodayProvider(scheduling), callHistoryProvider)
+	dashboard := handlers.NewDashboard(dashboardProvider)
+	calls := handlers.NewCalls(callHistoryProvider)
 	planning := handlers.NewPlanning(scheduling)
 	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
 	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
@@ -65,7 +68,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	authentication := handlers.NewAuthentication(authenticationService)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, postCallWebhook, authentication, authenticationService),
+		Handler:           httpserver.New(readiness, dashboard, calls, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, postCallWebhook, authentication, authenticationService),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

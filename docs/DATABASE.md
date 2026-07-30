@@ -75,6 +75,14 @@ provider timestamp is at least as recent as the stored snapshot. Transcript,
 analysis, metadata and raw payload remain JSONB; normalized fiat cost is stored
 as integer micro-USD so reporting does not depend on binary floating point.
 
+The call-history read model resolves `tenant_id` from `context.Context`, loads
+the tenant's IANA timezone, then applies a half-open local-day interval to
+`conversations.started_at`. Detail reads always predicate on both tenant and
+conversation ID, so an unknown ID and another tenant's ID have the same domain
+outcome. Provider transcript JSON is converted to presentation turns only in
+the HTTP adapter. Customer name and phone remain empty until a verified,
+tenant-scoped linkage exists; they are never inferred from provider metadata.
+
 ## Integration tests
 
 CI starts `postgres:18.4-bookworm` and supplies `TEST_DATABASE_DSN`. Locally,
@@ -92,6 +100,8 @@ The integration suite verifies:
 - duplicate phone or plate in one tenant returns a domain conflict;
 - session expiry/revocation and the composite staff/tenant boundary;
 - persistent staff lockout after five failed password attempts.
+- call-history local-day ordering, tenant isolation and indistinguishable
+  unknown/foreign detail reads.
 
 ## Official references
 

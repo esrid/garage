@@ -49,3 +49,18 @@ type RecordResult struct {
 	Conversation Conversation
 	Duplicate    bool
 }
+
+// HistoryDay is the persisted conversations whose start falls within one
+// civil day of the tenant's timezone.
+type HistoryDay struct {
+	Date          time.Time
+	Timezone      string
+	Conversations []Conversation
+}
+
+// HistoryEntry carries the tenant timezone needed to render one conversation.
+// Timezone is tenant configuration, not provider data.
+type HistoryEntry struct {
+	Conversation Conversation
+	Timezone     string
+}

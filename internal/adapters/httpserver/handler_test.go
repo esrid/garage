@@ -35,6 +35,7 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 	return New(
 		readiness,
 		handlers.NewDashboard(nil),
+		handlers.NewCalls(nil),
 		handlers.NewPlanning(nil),
 		handlers.NewAppointmentMutations(nil),
 		voice.NewCustomerLookup(nil, nil),
@@ -243,17 +244,19 @@ func TestSessionNavigationNextCannotBecomeOpenRedirect(t *testing.T) {
 
 func TestApplicationRoutesRequireSessionAndRejectCrossOriginPosts(t *testing.T) {
 	handler := newHealthTestHandler(readinessStub{})
-	request := httptest.NewRequest(http.MethodGet, "/app", nil)
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != http.StatusUnauthorized {
-		t.Fatalf("GET /app status = %d, want 401", response.Code)
+	for _, path := range []string{"/app", "/app/calls", "/app/calls/call-id"} {
+		request := httptest.NewRequest(http.MethodGet, path, nil)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("GET %s status = %d, want 401", path, response.Code)
+		}
 	}
 
-	request = httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	request := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 	request.Header.Set("Origin", "https://attacker.example")
 	request.Header.Set("Sec-Fetch-Site", "cross-site")
-	response = httptest.NewRecorder()
+	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("cross-origin logout status = %d, want 403", response.Code)

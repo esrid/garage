@@ -6,12 +6,15 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/esrid/garage/internal/core/conversation"
+	"github.com/esrid/garage/internal/core/domain"
 	"github.com/jackc/pgx/v5"
 )
 
 var _ conversation.Store = (*Store)(nil)
+var _ conversation.HistoryStore = (*Store)(nil)
 
 const conversationColumns = `
 	id::text, tenant_id::text, provider, agent_id, provider_conversation_id,
@@ -159,4 +162,74 @@ func scanConversation(row pgx.Row) (conversation.Conversation, error) {
 		&value.UpdatedAt,
 	)
 	return value, err
+}
+
+func (s *Store) ConversationDay(ctx context.Context, tenantID string, day time.Time) (conversation.HistoryDay, error) {
+	dayStart, dayEnd, timezone, err := s.tenantDayBounds(ctx, tenantID, day)
+	if err != nil {
+		return conversation.HistoryDay{}, err
+	}
+	result := conversation.HistoryDay{
+		Date:          dayStart,
+		Timezone:      timezone,
+		Conversations: make([]conversation.Conversation, 0),
+	}
+
+	rows, err := s.pool.Query(ctx, `SELECT `+conversationColumns+`
+		FROM conversations
+		WHERE tenant_id = $1::uuid
+		  AND started_at >= $2
+		  AND started_at < $3
+		ORDER BY started_at DESC, id DESC`, tenantID, dayStart, dayEnd)
+	if err != nil {
+		return conversation.HistoryDay{}, fmt.Errorf("postgres: list conversation day: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		entry, err := scanConversation(rows)
+		if err != nil {
+			return conversation.HistoryDay{}, fmt.Errorf("postgres: scan conversation day: %w", err)
+		}
+		result.Conversations = append(result.Conversations, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return conversation.HistoryDay{}, fmt.Errorf("postgres: conversation day rows: %w", err)
+	}
+	return result, nil
+}
+
+func (s *Store) ConversationByID(ctx context.Context, tenantID, id string) (conversation.HistoryEntry, error) {
+	const query = `SELECT ` + conversationColumns + `,
+		(SELECT timezone FROM tenants WHERE id = $1::uuid)
+		FROM conversations
+		WHERE tenant_id = $1::uuid
+		  AND id = $2::uuid`
+	var result conversation.HistoryEntry
+	err := s.pool.QueryRow(ctx, query, tenantID, id).Scan(
+		&result.Conversation.ID,
+		&result.Conversation.TenantID,
+		&result.Conversation.Provider,
+		&result.Conversation.AgentID,
+		&result.Conversation.ProviderConversationID,
+		&result.Conversation.ProviderStatus,
+		&result.Conversation.ProviderEventAt,
+		&result.Conversation.StartedAt,
+		&result.Conversation.DurationSeconds,
+		&result.Conversation.CostFiatMicroUSD,
+		&result.Conversation.Transcript,
+		&result.Conversation.Summary,
+		&result.Conversation.ProviderOutcome,
+		&result.Conversation.Analysis,
+		&result.Conversation.Metadata,
+		&result.Conversation.CreatedAt,
+		&result.Conversation.UpdatedAt,
+		&result.Timezone,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return conversation.HistoryEntry{}, &domain.NotFoundError{Entity: "conversation", ID: id}
+	}
+	if err != nil {
+		return conversation.HistoryEntry{}, fmt.Errorf("postgres: load conversation by id: %w", err)
+	}
+	return result, nil
 }

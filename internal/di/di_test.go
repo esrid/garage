@@ -82,6 +82,20 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "momentanément indisponibles") {
 		t.Fatalf("authenticated dashboard status=%d body=%q", response.Code, response.Body.String())
 	}
+	request = httptest.NewRequest(http.MethodGet, "/app/calls", nil)
+	request.AddCookie(loginCookies[0])
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "Appels du jour") {
+		t.Fatalf("call history status=%d body=%q", response.Code, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodGet, "/app/calls/not-a-uuid", nil)
+	request.AddCookie(loginCookies[0])
+	response = httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound || !strings.Contains(response.Body.String(), "Appel introuvable") {
+		t.Fatalf("unknown call status=%d body=%q", response.Code, response.Body.String())
+	}
 	request = httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 	request.AddCookie(loginCookies[0])
 	response = httptest.NewRecorder()
