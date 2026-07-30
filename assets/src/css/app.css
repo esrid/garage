@@ -12,6 +12,10 @@
  */
 
 @import "./tokens.css";
+/* Public site components (F07). Same tokens, separate file so the app styles
+ * below stay about the app. Both are served: the whole css directory is
+ * embedded (see README.md). */
+@import "./site.css";
 
 /* ---------------------------------------------------------------- reset ---
  * tokens.css deliberately ships no reset. This is the smallest one that

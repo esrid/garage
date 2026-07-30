@@ -1,0 +1,67 @@
+package views
+
+// SiteLayout is the shell every public page renders inside: marketing pages and
+// legal pages alike.
+//
+// body is a parameter rather than templ children so a handler can pick the page
+// from a plain Go table without any children plumbing.
+//
+// No htmx and no tracker here. The public pages are static HTML; the PRD (§11)
+// rules out marketing trackers during manual prospecting, and nothing on these
+// pages needs the server after the first paint.
+templ SiteLayout(meta SiteMeta, body templ.Component) {
+	<!DOCTYPE html>
+	<html lang="fr">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ meta.Title }</title>
+			<meta name="description" content={ meta.Description }/>
+			<link rel="canonical" href={ templ.URL(meta.Canonical()) }/>
+			<meta property="og:type" content="website"/>
+			<meta property="og:site_name" content={ siteName }/>
+			<meta property="og:title" content={ meta.Title }/>
+			<meta property="og:description" content={ meta.Description }/>
+			<meta property="og:url" content={ meta.Canonical() }/>
+			<meta property="og:locale" content="fr_FR"/>
+			// No og:image: there is no brand image yet, and a broken preview is
+			// worse than none. Add the tag with the asset.
+			<link rel="stylesheet" href="/static/css/app.css"/>
+			@templ.JSONScript("schema-organization", meta.organizationLD()).WithType("application/ld+json")
+		</head>
+		<body>
+			<a class="skip-link" href="#main">Aller au contenu</a>
+			// The public shell reuses the app shell classes: one visual system, and
+			// a prospect who signs up recognises the product.
+			<header class="app-header">
+				<a class="app-brand" href="/">{ siteName }</a>
+				<nav class="app-nav" aria-label="Navigation du site">
+					for _, link := range SiteNav {
+						@navLink(link.Path, link.Label, meta.Path)
+					}
+				</nav>
+			</header>
+			<main class="app-main" id="main">
+				@body
+			</main>
+			<footer class="site-footer">
+				<nav class="site-footer-nav" aria-label="Pied de page">
+					<ul class="site-footer-list">
+						for _, link := range SiteNav {
+							<li><a href={ templ.SafeURL(link.Path) }>{ link.Label }</a></li>
+						}
+					</ul>
+					<ul class="site-footer-list">
+						for _, link := range SiteLegal {
+							<li><a href={ templ.SafeURL(link.Path) }>{ link.Label }</a></li>
+						}
+					</ul>
+				</nav>
+				<p class="site-footer-note">
+					{ siteName } — assistant de réception pour ateliers.
+					Martinique.
+				</p>
+			</footer>
+		</body>
+	</html>
+}

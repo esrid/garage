@@ -1,0 +1,190 @@
+/*
+ * Public site (F07): landing, marketing pages and legal pages.
+ *
+ * Every value comes from tokens.css, like app.css. The public pages reuse the
+ * app shell classes (.app-header, .app-nav, .app-main, .panel, .btn) on purpose:
+ * one visual system, and a prospect who becomes a user recognises the product.
+ * Only what the app has no equivalent for lives here.
+ */
+
+/* --------------------------------------------------------------- hero --- */
+
+.hero {
+  padding-block: var(--space-12) var(--space-4);
+}
+
+.hero-title {
+  /* Grows with the viewport between the two type-scale steps we already have,
+   * so no media query and no third font size. */
+  font-size: clamp(var(--font-size-3xl), 6vw, var(--font-size-4xl));
+  max-width: 34ch;
+}
+
+.lead {
+  max-width: var(--content-width);
+  margin-block-start: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  line-height: var(--line-height-relaxed);
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-start: var(--space-6);
+}
+
+/* ------------------------------------------------------------ sections --- */
+
+.site-section {
+  margin-block-start: var(--space-12);
+}
+
+.section-title {
+  margin-block-end: var(--space-5);
+  font-size: var(--font-size-2xl);
+}
+
+.site-text {
+  max-width: var(--content-width);
+}
+
+.site-note {
+  max-width: var(--content-width);
+  margin-block-start: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.site-list,
+.site-steps {
+  display: grid;
+  gap: var(--space-2);
+  max-width: var(--content-width);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+/* ------------------------------------------------------------- cards --- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* .panel brings the surface, border and radius; it ships no padding. */
+.site-card {
+  padding: var(--space-5);
+}
+
+.site-card-title {
+  margin-block-end: var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.site-card-text {
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------ pricing --- */
+
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.price {
+  padding: var(--space-6);
+}
+
+.price-name {
+  font-size: var(--font-size-lg);
+}
+
+.price-amount {
+  margin-block: var(--space-2);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  /* Prices sit next to each other: same-width digits keep them aligned. */
+  font-variant-numeric: tabular-nums;
+}
+
+.price-period {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+.price-quota {
+  margin-block-end: var(--space-3);
+  font-weight: var(--font-weight-medium);
+}
+
+/* -------------------------------------------------------- placeholder --- */
+
+/* A fact the founder still has to supply. Deliberately loud: a placeholder
+ * nobody notices is a placeholder that ships. Warning tokens, not danger:
+ * nothing is broken, something is missing. */
+.placeholder {
+  max-width: var(--content-width);
+  margin-block-start: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+}
+
+/* ------------------------------------------------------------- footer --- */
+
+.site-footer {
+  margin-block-start: var(--space-16);
+  padding: var(--space-8) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.site-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  /* Without this the columns stretch to the tallest one and their grid rows grow
+   * with them, so the two lists stop lining up row by row. */
+  align-items: start;
+  gap: var(--space-4) var(--space-12);
+  max-width: var(--container-width);
+  margin-inline: auto;
+}
+
+.site-footer-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  /* Footer links are the most-tapped small targets on a phone. */
+  & a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+    color: var(--color-text-muted);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-text);
+      text-decoration: underline;
+    }
+  }
+}
+
+.site-footer-note {
+  max-width: var(--container-width);
+  margin: var(--space-6) auto 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
