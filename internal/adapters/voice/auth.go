@@ -33,7 +33,7 @@ func NewTokenAuthenticator(encoded string) (*TokenAuthenticator, error) {
 		}
 		tenantID, token, _ := strings.Cut(item, ":")
 		tenantID = strings.ToLower(strings.TrimSpace(tenantID))
-		if !validUUID(tenantID) {
+		if !ValidUUID(tenantID) {
 			return nil, fmt.Errorf("voice credentials: tenant ID must be a UUID")
 		}
 		if !validToolToken(token) {
@@ -76,7 +76,7 @@ func validToolToken(token string) bool {
 	return true
 }
 
-func validUUID(value string) bool {
+func ValidUUID(value string) bool {
 	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
 		return false
 	}

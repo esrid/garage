@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/esrid/garage/internal/adapters/handlers"
 	"github.com/esrid/garage/internal/adapters/httpserver"
 	"github.com/esrid/garage/internal/adapters/stores/postgres"
 	"github.com/esrid/garage/internal/adapters/voice"
@@ -22,7 +21,12 @@ import (
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/followup"
 	"github.com/esrid/garage/internal/core/services"
+	"github.com/esrid/garage/internal/features/calls"
 	"github.com/esrid/garage/internal/features/dashboard"
+	"github.com/esrid/garage/internal/features/identity"
+	"github.com/esrid/garage/internal/features/planning"
+	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/voicetools"
 )
 
 type App struct {
@@ -48,22 +52,22 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	readiness := services.NewReadiness(database)
 	scheduling := appointment.NewService(database, database, database)
 	followUpReads := followup.NewReadService(database)
-	callHistoryProvider := handlers.NewCallHistoryProvider(conversation.NewHistoryService(database), followUpReads)
+	callHistoryProvider := calls.NewCallHistoryProvider(conversation.NewHistoryService(database), followUpReads)
 	// The day view is composed one domain at a time: appointments, then the calls
 	// F14 persisted, then the follow-ups F08 recorded.
 	dashboardProvider := dashboard.NewTodayWithFollowUpsProvider(
 		dashboard.NewTodayWithCallsProvider(dashboard.NewAppointmentTodayProvider(scheduling), callHistoryProvider),
 		followUpReads,
 	)
-	dashboard := dashboard.NewDashboard(dashboardProvider)
-	calls := handlers.NewCalls(callHistoryProvider)
-	planning := handlers.NewPlanning(scheduling)
-	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
-	openingMutations := handlers.NewOpeningMutations(scheduling)
-	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
-	appointmentTools := voice.NewAppointmentTools(scheduling, voiceAuthenticator)
-	followUpTool := voice.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
-	postCallWebhook, err := voice.NewPostCallWebhook(
+	dashboardHandler := dashboard.NewDashboard(dashboardProvider)
+	callsHandler := calls.NewCalls(callHistoryProvider)
+	planningHandler := planning.NewHandler(scheduling)
+	appointmentMutations := planning.NewAppointmentMutations(scheduling)
+	openingMutations := planning.NewOpeningMutations(scheduling)
+	customerLookup := voicetools.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
+	appointmentTools := voicetools.NewAppointmentTools(scheduling, voiceAuthenticator)
+	followUpTool := voicetools.NewFollowUpTool(followup.NewService(database), voiceAuthenticator)
+	postCallWebhook, err := postcall.NewPostCallWebhook(
 		conversation.NewService(database),
 		cfg.ElevenLabsWebhookSecret,
 		cfg.ElevenLabsAgentTenants,
@@ -73,16 +77,16 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 	authenticationService := coreauth.NewService(database)
-	authentication := handlers.NewAuthentication(authenticationService)
+	authentication := identity.NewAuthentication(authenticationService)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
 			Readiness:        readiness,
 			Sessions:         authenticationService,
 			Authentication:   authentication,
-			Dashboard:        dashboard,
-			Calls:            calls,
-			Planning:         planning,
+			Dashboard:        dashboardHandler,
+			Calls:            callsHandler,
+			Planning:         planningHandler,
 			Appointments:     appointmentMutations,
 			Openings:         openingMutations,
 			CustomerLookup:   customerLookup,

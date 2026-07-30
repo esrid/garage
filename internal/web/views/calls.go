@@ -1,8 +1,6 @@
 package views
 
 import (
-	"fmt"
-	"strings"
 	"time"
 )
 
@@ -45,39 +43,4 @@ type CallTurn struct {
 	// At is the offset from the start of the call, zero when the provider gave
 	// none. Rendered only when non-zero: a fake "00:00" on every line is noise.
 	At time.Duration
-}
-
-// callerTitle names a call row: the customer when known, the number otherwise.
-// Reuses the F04 rule so the dashboard and the history never disagree.
-func callerTitle(call CallSummary) string {
-	return ContactLabel(call.CustomerName, call.Phone)
-}
-
-// turnRole is the speaker label. Provider roles are free strings: an unknown one
-// keeps its raw value rather than being folded into "agent" or "client".
-func turnRole(role string) string {
-	switch strings.TrimSpace(role) {
-	case "agent", "assistant":
-		return "Assistant"
-	case "user", "customer":
-		return "Client"
-	case "":
-		return "—"
-	default:
-		return role
-	}
-}
-
-// turnOffset formats the position of a turn inside the call, "" when unknown.
-func turnOffset(at time.Duration) string {
-	if at <= 0 {
-		return ""
-	}
-	seconds := int(at.Round(time.Second).Seconds())
-	return fmt.Sprintf("%02d:%02d", seconds/60, seconds%60)
-}
-
-// callDayParam formats the day for the ?day= parameter, like the planning page.
-func callDayParam(day time.Time) string {
-	return day.Format(time.DateOnly)
 }

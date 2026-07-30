@@ -1,0 +1,11 @@
+package views
+
+// Hero is the opening block of a public page: the sign-in page and the
+// marketing pages share it, so it belongs to the kit rather than to either.
+templ Hero(title string, lead string) {
+	<section class="hero">
+		<h1 class="hero-title">{ title }</h1>
+		<p class="lead">{ lead }</p>
+		{ children... }
+	</section>
+}

@@ -9,12 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/esrid/garage/internal/adapters/handlers"
-	"github.com/esrid/garage/internal/adapters/voice"
 	coreauth "github.com/esrid/garage/internal/core/auth"
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/core/tenant"
+	"github.com/esrid/garage/internal/features/calls"
 	"github.com/esrid/garage/internal/features/dashboard"
+	"github.com/esrid/garage/internal/features/identity"
+	"github.com/esrid/garage/internal/features/planning"
+	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/voicetools"
 )
 
 type readinessStub struct {
@@ -36,21 +39,21 @@ func newHealthTestHandler(readiness readinessChecker) http.Handler {
 	return New(Deps{
 		Readiness:        readiness,
 		Sessions:         sessionVerifierStub{},
-		Authentication:   handlers.NewAuthentication(nil),
+		Authentication:   identity.NewAuthentication(nil),
 		Dashboard:        dashboard.NewDashboard(nil),
-		Calls:            handlers.NewCalls(nil),
-		Planning:         handlers.NewPlanning(nil),
-		Appointments:     handlers.NewAppointmentMutations(nil),
-		Openings:         handlers.NewOpeningMutations(nil),
-		CustomerLookup:   voice.NewCustomerLookup(nil, nil),
-		AppointmentTools: voice.NewAppointmentTools(nil, nil),
-		FollowUpTool:     voice.NewFollowUpTool(nil, nil),
+		Calls:            calls.NewCalls(nil),
+		Planning:         planning.NewHandler(nil),
+		Appointments:     planning.NewAppointmentMutations(nil),
+		Openings:         planning.NewOpeningMutations(nil),
+		CustomerLookup:   voicetools.NewCustomerLookup(nil, nil),
+		AppointmentTools: voicetools.NewAppointmentTools(nil, nil),
+		FollowUpTool:     voicetools.NewFollowUpTool(nil, nil),
 		PostCallWebhook:  mustDisabledPostCallWebhook(),
 	})
 }
 
-func mustDisabledPostCallWebhook() *voice.PostCallWebhook {
-	handler, err := voice.NewPostCallWebhook(nil, "", "")
+func mustDisabledPostCallWebhook() *postcall.PostCallWebhook {
+	handler, err := postcall.NewPostCallWebhook(nil, "", "")
 	if err != nil {
 		panic(err)
 	}

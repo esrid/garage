@@ -6,9 +6,13 @@ import (
 	"net/http"
 
 	"github.com/esrid/garage/assets"
-	"github.com/esrid/garage/internal/adapters/handlers"
-	"github.com/esrid/garage/internal/adapters/voice"
+	"github.com/esrid/garage/internal/features/calls"
 	"github.com/esrid/garage/internal/features/dashboard"
+	"github.com/esrid/garage/internal/features/identity"
+	"github.com/esrid/garage/internal/features/planning"
+	"github.com/esrid/garage/internal/features/postcall"
+	"github.com/esrid/garage/internal/features/site"
+	"github.com/esrid/garage/internal/features/voicetools"
 )
 
 type readinessChecker interface {
@@ -26,20 +30,20 @@ type handler struct {
 type Deps struct {
 	Readiness      readinessChecker
 	Sessions       sessionVerifier
-	Authentication *handlers.Authentication
+	Authentication *identity.Authentication
 
 	// Behind the staff session.
 	Dashboard    *dashboard.Dashboard
-	Calls        *handlers.Calls
-	Planning     *handlers.Planning
-	Appointments *handlers.AppointmentMutations
-	Openings     *handlers.OpeningMutations
+	Calls        *calls.Calls
+	Planning     *planning.Handler
+	Appointments *planning.AppointmentMutations
+	Openings     *planning.OpeningMutations
 
 	// Authenticated by their own tenant-scoped bearer token or signature.
-	CustomerLookup   *voice.CustomerLookup
-	AppointmentTools *voice.AppointmentTools
-	FollowUpTool     *voice.FollowUpTool
-	PostCallWebhook  *voice.PostCallWebhook
+	CustomerLookup   *voicetools.CustomerLookup
+	AppointmentTools *voicetools.AppointmentTools
+	FollowUpTool     *voicetools.FollowUpTool
+	PostCallWebhook  *postcall.PostCallWebhook
 }
 
 // New builds the router as a list of trust boundaries, because that is what the
@@ -74,8 +78,8 @@ func mountOperations(mux *http.ServeMux, h *handler) {
 // assets. None of them has a dependency, so they are built here instead of
 // travelling through the DI root.
 func mountPublic(mux *http.ServeMux) {
-	handlers.NewSite().Register(mux)
-	handlers.NewLogin().Register(mux)
+	site.NewSite().Register(mux)
+	identity.NewLogin().Register(mux)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(assets.Static())))
 }
 
