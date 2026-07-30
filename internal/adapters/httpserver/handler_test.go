@@ -19,7 +19,13 @@ type readinessStub struct {
 func (s readinessStub) Check(context.Context) error { return s.err }
 
 func newHealthTestHandler(readiness readinessChecker) http.Handler {
-	return New(readiness, handlers.NewDashboard(nil), handlers.NewAppointmentMutations(nil), voice.NewCustomerLookup(nil, nil))
+	return New(
+		readiness,
+		handlers.NewDashboard(nil),
+		handlers.NewAppointmentMutations(nil),
+		voice.NewCustomerLookup(nil, nil),
+		voice.NewAppointmentTools(nil, nil),
+	)
 }
 
 func TestHealthEndpoints(t *testing.T) {

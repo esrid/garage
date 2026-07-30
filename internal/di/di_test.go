@@ -87,6 +87,23 @@ func TestNewWiresReadinessAndApplicationRoutes(t *testing.T) {
 	if response.Code != http.StatusUnauthorized {
 		t.Errorf("voice lookup status = %d, want %d", response.Code, http.StatusUnauthorized)
 	}
+
+	voiceRoutes := []struct {
+		path string
+		body string
+	}{
+		{"/voice/tools/appointment-availability", `{"day":"2030-01-02T12:00:00-04:00","duration_minutes":60}`},
+		{"/voice/tools/appointment-book", `{"conversation_id":"conv","customer_id":"019c09ea-bca7-7a5d-98b6-3f3b3ed79ea1","service_label":"Révision","start_at":"2030-01-02T08:00:00-04:00","duration_minutes":60}`},
+	}
+	for _, route := range voiceRoutes {
+		request = httptest.NewRequest(http.MethodPost, route.path, strings.NewReader(route.body))
+		request.Header.Set("Content-Type", "application/json")
+		response = httptest.NewRecorder()
+		app.server.Handler.ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Errorf("POST %s status = %d, want %d", route.path, response.Code, http.StatusUnauthorized)
+		}
+	}
 }
 
 func TestNewRejectsInvalidVoiceCredentialsBeforeOpeningDatabase(t *testing.T) {

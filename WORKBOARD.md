@@ -18,7 +18,7 @@
 | F02B | Mini-planning atelier — UI | Agent B | F02A | vues planning, fragments HTMX et styles locaux non globaux | consomme le contrat HTTP figé par F02A | rendu + progressive enhancement + a11y | READY |
 | F03 | Voice lookup customer tool | Agent A | F01 | `docs/contracts/F03-voice-customer-lookup.md`, `docs/ELEVENLABS.md`, `internal/adapters/voice/**`, `internal/config/**` (variable credentials uniquement), `compose.yml` (une variable app), `internal/adapters/httpserver/handler.go` (une route), `internal/di/**` (wiring uniquement) | `docs/contracts/F03-voice-customer-lookup.md` (frozen 2026-07-30); secret → tenant context, jamais tenant_id LLM | known + unknown phone + auth/isolation + erreurs bornées | REVIEW |
 | F04 | Dashboard Today | Agent B | F02A | `internal/web/views/**`, `internal/adapters/handlers/dashboard*` | `docs/contracts/F04-dashboard-today.md` (frozen 2026-07-30) | calls/RDV/tasks render | REVIEW — page servie sur `GET /app`, fragment `GET /app/today`, 11 tests, vérifiée en navigateur à 380 et 1280 px |
-| F05 | Voice book appointment | Agent A | F02,F03 | voice tool + booking adapter | `SchedulingProvider.Book` | recheck + idempotency | BLOCKED |
+| F05 | Voice find slots + book appointment | Agent A | F02A,F03 | `docs/contracts/F05-voice-book-appointment.md`, `docs/ELEVENLABS.md` (ajout F05 uniquement), `internal/adapters/voice/appointment_booking*.go`, `internal/adapters/httpserver/handler.go` (deux routes uniquement), `internal/di/**` (wiring uniquement) | `docs/contracts/F05-voice-book-appointment.md` (frozen 2026-07-30); interfaces `SchedulingProvider` inchangées | disponibilité persistée + confirmation après commit + auth/isolation + idempotence déterministe | REVIEW |
 | F06 | CSS tokens + base components | Agent B | - | `assets/src/css/**` | existing token names in `assets/src/css/tokens.css` | responsive/a11y smoke — DONE: light+dark at 360/500/700/1280, no overflow, 3 defects fixed | MERGED |
 
 PR #1 was merged by the founder as `229598e` on `main`. The local
@@ -38,6 +38,17 @@ Notes (Agent B):
 - F04/F06 owned paths said `web/...`; no such directory exists. templ output is Go
   code, so views will live in `internal/web/views/` and the dashboard handler in the
   existing `internal/adapters/handlers/`. Paths updated above, no second convention.
+
+## Coordination F05 unblock — Agent A, 2026-07-30
+
+F05 dépend du backend F02A, pas des vues F02B. F02A et F03 sont poussés et en
+`REVIEW`; leurs contrats gelés fournissent respectivement `SchedulingProvider`
+et l'authentification voix tenant-scoped. Le blocage technique est donc levé.
+F05 est CLAIM par Agent A et ne touche aucun chemin possédé par Agent B.
+
+Le contrat HTTP F05 est gelé avant implémentation dans
+`docs/contracts/F05-voice-book-appointment.md`. Les interfaces provider F02A
+restent inchangées. F02B peut continuer indépendamment.
 - F06 is CSS only. No Go, no new dependency, no DI change — it merges independently
   of F00.
 - **Blocked, needs Agent A:** every templ view (F04, F02B) needs
@@ -366,6 +377,47 @@ le secret de ce garage. Une architecture d'agent partagé exigera une mini-tâch
 et une secret dynamic variable, jamais tenant_id ou token dans le prompt LLM.
 ```
 
+## Open handoff — Agent A to Agent B, F05 review, 2026-07-30
+
+```
+Feature: F05 Voice find slots + book appointment
+From: Agent A (backend)
+To: Agent B (reviewer)
+Status: REVIEW. Aucun merge vers main demandé ou effectué.
+
+Contrat gelé avant code : docs/contracts/F05-voice-book-appointment.md
+Interfaces provider F02A inchangées.
+
+Implémentation :
+  POST /voice/tools/appointment-availability
+  POST /voice/tools/appointment-book
+  même Bearer secret tenant-scoped que F03 ; tenant_id jamais accepté
+  JSON strict/borné ; créneaux issus uniquement du planning PostgreSQL
+  idempotency key dérivée côté serveur de system__conversation_id + opération
+  confirmed=true uniquement après Book confirmé du tenant authentifié
+  horaires convertis explicitement dans le timezone persisté du tenant
+  401/422/404/409/503 bornés, no-store, aucune donnée interne exposée
+
+Review indépendante :
+  finding moyen 1 corrigé : sortie initialement dépendante du TZ processus ;
+  conversion explicite vers le fuseau tenant + smoke sous TZ=UTC ajouté.
+  finding moyen 2 corrigé : lecture du fuseau après commit pouvait produire un
+  faux confirmed=false ; le fuseau est maintenant validé avant Book et un test
+  garantit qu'aucune écriture n'a lieu si cette précondition échoue.
+  Re-review finale : PASS.
+
+Validation :
+  PostgreSQL 18.4 réel + go test -count=1 -race ./...
+  go vet ./... ; go build ./... ; git diff --check
+  smoke HTTP réel sous TZ=UTC : slots=200 en -04:00 ; book=200 confirmé en
+  -04:00 ; répétition exacte=même appointment ID ; autre opération concurrente
+  sur le créneau=409 avec confirmed=false.
+
+Docs officielles vérifiées le 2026-07-30 : Webhook Tools, secret headers,
+system__conversation_id et distinction retries event webhook / tool call dans
+docs/ELEVENLABS.md. F02B et tous les fichiers UI restent intacts.
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
@@ -373,7 +425,7 @@ Current owner must be written here before edits.
 |---|---|---|---|
 | `go.mod` / `go.sum` | Agent A | F00 MERGED | migration SQLite vers pgx/Goose |
 | `go.mod` / `go.sum` — ajout templ | Agent B — **RELEASED** | fait le 2026-07-30 | `github.com/a-h/templ v0.3.1020` ajouté sur autorisation explicite du fondateur, agent A absent. Une seule dépendance, ancrée par `internal/web/views/layout.templ` (sinon `go mod tidy` la supprime). Rien d'autre touché : DI root et routes intacts. |
-| DI root | - | - | wiring F03 terminé ; prochain owner doit CLAIM avant édition |
+| DI root | - | - | wiring F05 terminé ; prochain owner doit CLAIM avant édition |
 | DB migration numbering | Agent A | F02A MERGED | schéma backend initial |
 | `compose.yml` | - | - | F03 terminé ; prochain owner doit CLAIM avant édition |
 | `Dockerfile` | Agent A | F00 MERGED | supprimer les hypothèses SQLite de l'image applicative |
