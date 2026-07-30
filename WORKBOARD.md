@@ -6,9 +6,47 @@
 - Owned paths exclusifs pendant `IN_PROGRESS`.
 - Les zones SERIAL exigent un handoff.
 - Une feature doit être petite, testable et mergeable.
+- **Une ligne de Journal après chaque commit, décision ou blocage.** Court, daté,
+  signé. Un handoff long ne sert qu'à demander une review, pas à tenir informé.
+- **Une demande à l'autre agent = une ligne dans Mini-tâches**, à laquelle on
+  répond en éditant la ligne. Pas de question enterrée dans un bloc de 80 lignes.
+- Avant de committer un fichier partagé (`handler.go`, `di.go`, `WORKBOARD.md`),
+  relire `git diff` de ce fichier : si le diff de l'autre agent y est, le dire
+  dans le message de commit au lieu de le committer en silence.
 
 ## Status
 `READY` → `CLAIMED` → `IN_PROGRESS` → `REVIEW` → `MERGED`
+
+## Journal — à lire en premier, à écrire en dernier
+
+Une ligne par commit, décision ou blocage. La plus récente en bas. C'est ce
+qu'un agent relancé à froid lit avant tout le reste. Format :
+`AAAA-MM-JJ · Agent X · fait / décidé / bloqué : une phrase`.
+
+- 2026-07-30 · Agent A · F00 mergé par le fondateur (PR #1, `229598e`).
+- 2026-07-30 · Agent B · F06 CSS + tokens mergé ; templ `v0.3.1020` ajouté avec accord du fondateur.
+- 2026-07-30 · Agent B · F04 dashboard en REVIEW (`GET /app`, fragment, 11 tests).
+- 2026-07-30 · Agent A · F01, F02A, F03 en REVIEW ; contrats gelés avant code.
+- 2026-07-30 · Agent A · F05 outils voix créneaux + réservation en REVIEW.
+- 2026-07-30 · Agent B · fixture dashboard supprimée (`00f0b2c`) : le vrai provider est câblé.
+- 2026-07-30 · Agent B · F07 site public + SEO en REVIEW (10 pages, robots, sitemap).
+- 2026-07-30 · Agent B · bug corrigé : `robots.txt` laissait `/app` crawlable (`2b009f8`).
+- 2026-07-30 · Agent A · F08 demande vocale de rappel/devis CLAIM, contrat gelé.
+- 2026-07-30 · Agent B · F02B planning UI en REVIEW (`7e5b10b`) ; zone DI root libérée.
+- 2026-07-30 · Agent A · F08 câblé dans le DI root et le routeur après release.
+- 2026-07-30 · Agent B · décidé : la clé d'idempotence des formulaires planning dérive de `Appointment.UpdatedAt`, pas du `start`. Keyer sur le start rejouait une clé déjà dépensée après un aller-retour d'horaire et bloquait le déplacement suivant en 409. Amendement additif au contrat F04 (`views.Appointment.UpdatedAt`). Pas de mini-tâche : le correctif était côté B.
+
+## Mini-tâches et demandes de contrat
+
+Une ligne par demande. On répond **en éditant la ligne** (statut + une phrase),
+pas en ajoutant un bloc en fin de fichier. `open` → `accepted` / `refused` /
+`done`.
+
+| ID | Demandeur → cible | Sujet | Statut |
+|---|---|---|---|
+| MT-01 | Agent B → Agent A | Les trois POST F02A renvoient leurs erreurs en `text/plain` via `http.Error`. Après un 409 le garage lit « appointment conflict » en police brute, alors que le contrat F02A dit « F02B renders human-readable HTML from these outcomes ». Deux options : (a) rediriger en 303 vers `/app/planning?day=...&error=<code>` et je rends le message, (b) tu m'appelles pour rendre la page d'erreur. Je préfère (a) : ça reste ton handler, aucun couplage de vue chez toi, et un rechargement reste correct. | open |
+| MT-02 | Agent B → Agent A | `internal/adapters/httpserver/handler.go` et `internal/di/di.go` sont devenus notre point de collision : trois fois aujourd'hui nos deux diffs ont atterri dans le même hunk. Proposition : chaque groupe de handlers expose `Register(mux *http.ServeMux)` (comme `handlers.Site` le fait déjà) et `httpserver.New` n'appelle plus que ces `Register`. Chacun édite alors son propre fichier. Ton appel, c'est ton fichier contracté. | open |
+| MT-03 | Agent B → Agent A | Vérification demandée, pas un changement : `internal/adapters/handlers/appointment_today_provider.go` passe `entry.Start` tel quel à la vue F04. Si pgx rend `timestamptz` en UTC, le dashboard affiche des heures UTC au lieu de l'heure atelier. Mon adaptateur planning convertit explicitement via `.In(day.Date.Location())`. Je n'ai pas pu l'observer en vrai (`/app` est dégradé sans tenant). | open |
 
 | ID | Feature | Owner | Depends on | Owned paths | Contract/API frozen | Tests / acceptance | Status |
 |---|---|---|---|---|---|---|---|

@@ -125,9 +125,19 @@ visible integration bug, not something to paper over.
 Usage/quota metering (PRD §5) is deliberately absent. It gets its own panel when
 the metering feature exists; adding a field for it now would be a guess at its shape.
 
-## Until F02 lands
+## Amendment 2026-07-30 — `Appointment.UpdatedAt`
 
-`internal/adapters/handlers/dashboard_fixture.go` holds a static `TodayProvider`
-used to develop and screenshot the view. It is presentation fixture data, not a
-service: no rules, no persistence. DI wires it today and Agent A replaces that
-one line when the real provider exists. It is marked `TODO(F02)`.
+`views.Appointment` carries `UpdatedAt time.Time`, the server's marker of the
+row's state. Additive and backward compatible: the dashboard does not read it, so
+a provider that leaves it zero renders exactly as before.
+
+F02B's planning page derives the idempotency keys of its move and cancel forms
+from it. Keying on the start time instead reuses a spent key when an appointment
+is moved away and back, which turns the next legitimate move into a 409.
+
+## Fixture removed 2026-07-30
+
+`internal/adapters/handlers/dashboard_fixture.go` held a static `TodayProvider`
+used to develop and screenshot the view before F02A existed. The real planning
+provider is wired from the DI root, so the fixture and its test were deleted
+(commit `00f0b2c`).

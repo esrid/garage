@@ -124,6 +124,9 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 			Plate:        entry.Plate,
 			Service:      entry.ServiceLabel,
 			Status:       string(entry.Status),
+			// The state marker the mutation forms key on: every write bumps it, so
+			// forms rendered before that write cannot be replayed as fresh ones.
+			UpdatedAt: entry.UpdatedAt,
 		})
 	}
 

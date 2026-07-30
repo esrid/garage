@@ -37,6 +37,11 @@ type Appointment struct {
 	Plate        string // may be empty: never invent one
 	Service      string
 	Status       string
+	// UpdatedAt is the server's marker of this row's state. The planning page
+	// derives its idempotency keys from it, so any write invalidates the forms
+	// rendered before it. Amendment 2026-07-30 to the F04 contract: additive, and
+	// the dashboard does not read it.
+	UpdatedAt time.Time
 }
 
 type Task struct {

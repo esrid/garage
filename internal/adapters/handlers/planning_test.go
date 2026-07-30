@@ -268,6 +268,31 @@ func TestPlanningIdempotencyKeysAreStableAndDistinct(t *testing.T) {
 	}
 }
 
+// The key must follow the row's server state, not its start time. An appointment
+// moved away and back would otherwise reuse a key already spent, and every later
+// move from that hour would answer 409 — a legitimate action blocked by a replay.
+func TestPlanningKeysFollowTheRowState(t *testing.T) {
+	keys := regexp.MustCompile(`name="idempotency_key" value="([0-9a-f]+)"`)
+	keyFor := func(updatedAt time.Time) string {
+		stub := fullPlanningStub()
+		stub.appointments = stub.appointments[:1]
+		stub.appointments[0].UpdatedAt = updatedAt
+		body := getPlanning(t, newTestPlanning(stub).Page, "/app/planning").Body.String()
+		found := keys.FindAllStringSubmatch(body, -1)
+		if len(found) == 0 {
+			t.Fatal("no idempotency key rendered")
+		}
+		return found[0][1]
+	}
+
+	// Same hour, same duration, but the row was written again since.
+	before := keyFor(time.Date(2026, 7, 30, 8, 0, 0, 0, martinique))
+	after := keyFor(time.Date(2026, 7, 30, 8, 5, 0, 0, martinique))
+	if before == after {
+		t.Error("the key survived a write to the row: a stale replay would block the next move")
+	}
+}
+
 func TestPlanningInventsNoOpeningHours(t *testing.T) {
 	stub := fullPlanningStub()
 	stub.openings = nil

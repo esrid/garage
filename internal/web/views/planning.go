@@ -133,20 +133,28 @@ func rescheduleOptions(planning Planning, item Appointment) []Slot {
 // double-click, a refresh, a flaky connection — carries the same key, and the
 // backend replays its first answer instead of moving the appointment twice.
 //
-// The current start time is part of the key, so once a move succeeds the next
-// render produces a different key and the following move is a new request. Going
-// back in the browser and submitting the stale form again reuses the key with
-// different data, which the contract turns into a 409 rather than a silent
-// double booking. That is the safe direction.
+// The row's UpdatedAt is what makes the key fresh, and it has to be a marker the
+// server bumps on every write. Keying on the start time instead looks equivalent
+// and is not: an appointment moved 09:00 → 10:00 → 09:00 would land back on a key
+// already spent, and every later move from 09:00 would answer 409 for as long as
+// it sat there — a legitimate action blocked by a stale replay.
+//
+// A stale form submitted from the browser's back button still carries the old
+// UpdatedAt with new data, which the contract turns into a 409 instead of a
+// silent double booking. That is the safe direction.
 func idempotencyKey(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
 	return hex.EncodeToString(sum[:16])
 }
 
+func rowState(item Appointment) string {
+	return item.ID + "@" + item.UpdatedAt.UTC().Format(time.RFC3339Nano)
+}
+
 func rescheduleKey(item Appointment) string {
-	return idempotencyKey("reschedule", item.ID, item.Start.Format(time.RFC3339), strconv.Itoa(appointmentMinutes(item)))
+	return idempotencyKey("reschedule", rowState(item), strconv.Itoa(appointmentMinutes(item)))
 }
 
 func cancelKey(item Appointment) string {
-	return idempotencyKey("cancel", item.ID, item.Start.Format(time.RFC3339))
+	return idempotencyKey("cancel", rowState(item))
 }
