@@ -18,32 +18,54 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, calls *handlers.Calls, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools, followUpTool *voice.FollowUpTool, postCallWebhook *voice.PostCallWebhook, authentication *handlers.Authentication, sessions sessionVerifier) http.Handler {
-	h := &handler{readiness: readiness}
+// Deps is everything the router mounts. A struct rather than a parameter list:
+// this signature grew to ten positional arguments in a day, every feature had to
+// touch it, and two of them are only distinguishable by their type. Named fields
+// make a call site readable and a new route a one-line change.
+type Deps struct {
+	Readiness      readinessChecker
+	Sessions       sessionVerifier
+	Authentication *handlers.Authentication
+
+	// Behind the staff session.
+	Dashboard    *handlers.Dashboard
+	Calls        *handlers.Calls
+	Planning     *handlers.Planning
+	Appointments *handlers.AppointmentMutations
+
+	// Authenticated by their own tenant-scoped bearer token or signature.
+	CustomerLookup   *voice.CustomerLookup
+	AppointmentTools *voice.AppointmentTools
+	FollowUpTool     *voice.FollowUpTool
+	PostCallWebhook  *voice.PostCallWebhook
+}
+
+func New(deps Deps) http.Handler {
+	h := &handler{readiness: deps.Readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
 	mux.HandleFunc("GET /readyz", h.ready)
 
 	appMux := http.NewServeMux()
-	appMux.HandleFunc("GET /app", dashboard.Page)
-	appMux.HandleFunc("GET /app/today", dashboard.Fragment)
-	calls.Register(appMux)
-	appMux.HandleFunc("GET /app/planning", planning.Page)
-	appMux.HandleFunc("GET /app/planning/day", planning.Fragment)
-	appMux.HandleFunc("POST /app/appointments", appointments.Book)
-	appMux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
-	appMux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)
-	protectedApp := requireStaffSession(sessions, appMux)
+	appMux.HandleFunc("GET /app", deps.Dashboard.Page)
+	appMux.HandleFunc("GET /app/today", deps.Dashboard.Fragment)
+	deps.Calls.Register(appMux)
+	appMux.HandleFunc("GET /app/planning", deps.Planning.Page)
+	appMux.HandleFunc("GET /app/planning/day", deps.Planning.Fragment)
+	appMux.HandleFunc("POST /app/appointments", deps.Appointments.Book)
+	appMux.HandleFunc("POST /app/appointments/{id}/reschedule", deps.Appointments.Reschedule)
+	appMux.HandleFunc("POST /app/appointments/{id}/cancel", deps.Appointments.Cancel)
+	protectedApp := requireStaffSession(deps.Sessions, appMux)
 	mux.Handle("/app", protectedApp)
 	mux.Handle("/app/", protectedApp)
 
-	mux.HandleFunc("POST /auth/login", authentication.Login)
-	mux.HandleFunc("POST /auth/logout", authentication.Logout)
-	mux.Handle("POST /voice/tools/customer-lookup", customerLookup)
-	mux.HandleFunc("POST /voice/tools/appointment-availability", appointmentTools.Availability)
-	mux.HandleFunc("POST /voice/tools/appointment-book", appointmentTools.Book)
-	mux.Handle("POST /voice/tools/follow-up-request", followUpTool)
-	mux.Handle("POST /webhooks/elevenlabs/post-call", postCallWebhook)
+	mux.HandleFunc("POST /auth/login", deps.Authentication.Login)
+	mux.HandleFunc("POST /auth/logout", deps.Authentication.Logout)
+	mux.Handle("POST /voice/tools/customer-lookup", deps.CustomerLookup)
+	mux.HandleFunc("POST /voice/tools/appointment-availability", deps.AppointmentTools.Availability)
+	mux.HandleFunc("POST /voice/tools/appointment-book", deps.AppointmentTools.Book)
+	mux.Handle("POST /voice/tools/follow-up-request", deps.FollowUpTool)
+	mux.Handle("POST /webhooks/elevenlabs/post-call", deps.PostCallWebhook)
 
 	// The public site (F07) owns "/" and the legal pages, and the login page (F13)
 	// is where the F09 middleware sends a browser without a session. Neither has a

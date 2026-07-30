@@ -32,19 +32,19 @@ func (s sessionVerifierStub) Resume(context.Context, string) (coreauth.Identity,
 }
 
 func newHealthTestHandler(readiness readinessChecker) http.Handler {
-	return New(
-		readiness,
-		handlers.NewDashboard(nil),
-		handlers.NewCalls(nil),
-		handlers.NewPlanning(nil),
-		handlers.NewAppointmentMutations(nil),
-		voice.NewCustomerLookup(nil, nil),
-		voice.NewAppointmentTools(nil, nil),
-		voice.NewFollowUpTool(nil, nil),
-		mustDisabledPostCallWebhook(),
-		handlers.NewAuthentication(nil),
-		sessionVerifierStub{},
-	)
+	return New(Deps{
+		Readiness:        readiness,
+		Sessions:         sessionVerifierStub{},
+		Authentication:   handlers.NewAuthentication(nil),
+		Dashboard:        handlers.NewDashboard(nil),
+		Calls:            handlers.NewCalls(nil),
+		Planning:         handlers.NewPlanning(nil),
+		Appointments:     handlers.NewAppointmentMutations(nil),
+		CustomerLookup:   voice.NewCustomerLookup(nil, nil),
+		AppointmentTools: voice.NewAppointmentTools(nil, nil),
+		FollowUpTool:     voice.NewFollowUpTool(nil, nil),
+		PostCallWebhook:  mustDisabledPostCallWebhook(),
+	})
 }
 
 func mustDisabledPostCallWebhook() *voice.PostCallWebhook {

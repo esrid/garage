@@ -73,8 +73,20 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	authenticationService := coreauth.NewService(database)
 	authentication := handlers.NewAuthentication(authenticationService)
 	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, calls, planning, appointmentMutations, customerLookup, appointmentTools, followUpTool, postCallWebhook, authentication, authenticationService),
+		Addr: cfg.HTTPAddr,
+		Handler: httpserver.New(httpserver.Deps{
+			Readiness:        readiness,
+			Sessions:         authenticationService,
+			Authentication:   authentication,
+			Dashboard:        dashboard,
+			Calls:            calls,
+			Planning:         planning,
+			Appointments:     appointmentMutations,
+			CustomerLookup:   customerLookup,
+			AppointmentTools: appointmentTools,
+			FollowUpTool:     followUpTool,
+			PostCallWebhook:  postCallWebhook,
+		}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,
