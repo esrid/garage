@@ -7,7 +7,7 @@ import (
 	"github.com/esrid/garage/internal/core/followup"
 )
 
-var _ followup.PendingStore = (*Store)(nil)
+var _ followup.ReadStore = (*Store)(nil)
 
 // PendingFollowUps lists the requests still to handle for one tenant, oldest
 // first, with the customer name resolved in the same query.
@@ -55,6 +55,40 @@ func (s *Store) PendingFollowUps(ctx context.Context, tenantID string, limit int
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("postgres: pending follow-up rows: %w", err)
+	}
+	return result, nil
+}
+
+// CallersByConversation resolves who called, for the conversations we recorded a
+// follow-up request for. A conversation with several requests resolves once:
+// they carry the same caller by construction.
+func (s *Store) CallersByConversation(ctx context.Context, tenantID string, conversationIDs []string) (map[string]followup.Caller, error) {
+	const query = `
+		SELECT DISTINCT ON (f.conversation_id)
+			f.conversation_id, f.phone_e164,
+			btrim(concat_ws(' ', c.first_name, c.last_name))
+		FROM follow_up_requests f
+		LEFT JOIN customers c ON c.tenant_id = f.tenant_id AND c.id = f.customer_id
+		WHERE f.tenant_id = $1::uuid AND f.conversation_id = ANY($2)
+		ORDER BY f.conversation_id, f.created_at`
+
+	rows, err := s.pool.Query(ctx, query, tenantID, conversationIDs)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: resolve conversation callers: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]followup.Caller, len(conversationIDs))
+	for rows.Next() {
+		var conversationID string
+		var caller followup.Caller
+		if err := rows.Scan(&conversationID, &caller.Phone, &caller.CustomerName); err != nil {
+			return nil, fmt.Errorf("postgres: scan conversation caller: %w", err)
+		}
+		result[conversationID] = caller
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres: conversation caller rows: %w", err)
 	}
 	return result, nil
 }

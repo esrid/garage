@@ -243,3 +243,26 @@ func TestCallDetailPassesTheIdThrough(t *testing.T) {
 		t.Errorf("reader received %v, want [conv-42]", stub.callIDs)
 	}
 }
+
+// F14 surfaces the provider's call_successful as the outcome. Left unlabelled it
+// printed "success" in English on a French screen; the wording stays about how
+// the call went, never about the garage's work being done.
+func TestCallOutcomeLabelsAreFrenchAndModest(t *testing.T) {
+	for outcome, want := range map[string]string{
+		"success": "Abouti",
+		"failure": "Non abouti",
+		"unknown": "Indéterminé",
+	} {
+		stub := fullCallsStub()
+		stub.history.Calls[0].Outcome = outcome
+		body := getCalls(t, stub, "/app/calls").Body.String()
+		if !strings.Contains(body, want) {
+			t.Errorf("outcome %q does not render as %q", outcome, want)
+		}
+		for _, forbidden := range []string{"Traité", "Résolu", "Terminé"} {
+			if strings.Contains(body, forbidden) {
+				t.Errorf("outcome %q claims more than the provider said: %q", outcome, forbidden)
+			}
+		}
+	}
+}

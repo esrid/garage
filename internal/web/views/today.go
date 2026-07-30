@@ -60,11 +60,11 @@ type Task struct {
 // unknown value is a visible integration bug, not something to paper over.
 func badgeTone(status string) string {
 	switch status {
-	case "booked", "confirmed", "done":
+	case "booked", "confirmed", "done", "success":
 		return "badge-success"
-	case "pending", "in_progress", "rescheduled", "transferred":
+	case "pending", "in_progress", "rescheduled", "transferred", "unknown":
 		return "badge-warning"
-	case "cancelled", "no_show", "dropped":
+	case "cancelled", "no_show", "dropped", "failure":
 		return "badge-danger"
 	case "callback", "quote", "info":
 		return "badge-info"
@@ -90,6 +90,12 @@ var statusLabels = map[string]string{
 	"no_show":     "Absent",
 	// Shared by both
 	"cancelled": "Annulé",
+	// ElevenLabs call_successful, surfaced as Call.Outcome by F14. It is the
+	// provider's judgement on how the call went, not a business result, so the
+	// wording stays about the call and never claims the garage's work is done.
+	"success": "Abouti",
+	"failure": "Non abouti",
+	"unknown": "Indéterminé",
 }
 
 func statusLabel(status string) string {

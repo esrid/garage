@@ -46,12 +46,13 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	readiness := services.NewReadiness(database)
 	scheduling := appointment.NewService(database, database, database)
-	callHistoryProvider := handlers.NewCallHistoryProvider(conversation.NewHistoryService(database))
+	followUpReads := followup.NewReadService(database)
+	callHistoryProvider := handlers.NewCallHistoryProvider(conversation.NewHistoryService(database), followUpReads)
 	// The day view is composed one domain at a time: appointments, then the calls
 	// F14 persisted, then the follow-ups F08 recorded.
 	dashboardProvider := handlers.NewTodayWithFollowUpsProvider(
 		handlers.NewTodayWithCallsProvider(handlers.NewAppointmentTodayProvider(scheduling), callHistoryProvider),
-		followup.NewReadService(database),
+		followUpReads,
 	)
 	dashboard := handlers.NewDashboard(dashboardProvider)
 	calls := handlers.NewCalls(callHistoryProvider)

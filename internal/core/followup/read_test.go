@@ -13,15 +13,23 @@ import (
 const readTenant = "019c09ea-bca7-7a5d-98b6-3f3b3ed79ec1"
 
 type pendingStoreStub struct {
-	requests []Pending
-	err      error
-	limit    int
-	tenantID string
+	requests  []Pending
+	callers   map[string]Caller
+	err       error
+	limit     int
+	tenantID  string
+	callerIDs []string
 }
 
 func (s *pendingStoreStub) PendingFollowUps(_ context.Context, tenantID string, limit int) ([]Pending, error) {
 	s.tenantID, s.limit = tenantID, limit
 	return s.requests, s.err
+}
+
+func (s *pendingStoreStub) CallersByConversation(_ context.Context, tenantID string, ids []string) (map[string]Caller, error) {
+	s.tenantID = tenantID
+	s.callerIDs = ids
+	return s.callers, s.err
 }
 
 func pendingRequest(id string, createdAt time.Time) Pending {
