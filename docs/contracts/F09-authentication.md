@@ -24,7 +24,7 @@ Bodies use `application/x-www-form-urlencoded` for native HTML forms.
 
 | Method / route | Input | Success |
 |---|---|---|
-| `POST /auth/login` | `email`, `password` | `303 See Other` to `/app` plus session cookie |
+| `POST /auth/login` | `email`, `password`, optional `next` | `303 See Other` to validated local `next`, otherwise `/app`, plus session cookie |
 | `POST /auth/logout` | none | session revoked, cookie expired, `303 See Other` to `/` |
 
 There is deliberately no backend-owned `GET` login page. The frontend may add
@@ -78,7 +78,30 @@ failure remains `503` and never masquerades as an expired session.
 `HX-Redirect` is intentionally carried on the `401`, not a 3xx: HTMX's official
 documentation states that it does not process response headers on 3xx responses.
 See [HTMX `HX-Redirect`](https://htmx.org/headers/hx-redirect/) (verified
-2026-07-30). The frontend owns `GET /login`; `POST /auth/login` is unchanged.
+2026-07-30). The frontend owns `GET /login`; F12 did not change
+`POST /auth/login`.
+
+### Amendment 2026-07-30 — F16 browser login outcomes
+
+`POST /auth/login` distinguishes an HTML form navigation from a non-browser API
+client. For a failed HTML navigation (`Sec-Fetch-Mode: navigate` or
+`Accept: text/html`) it returns `303` to `/login?error=<code>`; the closed codes
+are `invalid`, `rate_limited`, `unavailable`, and `forbidden`. Wrong
+credentials, invalid/missing form data and unsupported media type all use
+`invalid`, preserving account-enumeration resistance. `429` sets `Retry-After`
+before the redirect. Cross-origin protection still runs outside this handler
+and may return its direct `403` response.
+
+For `HX-Request: true`, which takes precedence over the HTML headers, a failed
+login returns `401` plus `HX-Redirect` to the same local login error URL. Other
+clients retain the original `401`, `415`, `422`, `429`, or `503` status and
+bounded text response. Error redirects never echo email, password, provider
+details, or an arbitrary return URL.
+
+On success, optional form field `next` is honored only when it parses as a
+relative request URI whose path is exactly `/app` or begins `/app/`, with no
+fragment, userinfo, host, scheme, backslash or control character. Invalid or
+absent values fall back to `/app`; they are never repaired into a redirect.
 
 ## Password contract
 
