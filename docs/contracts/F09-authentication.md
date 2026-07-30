@@ -54,10 +54,31 @@ whether an email exists, is disabled, or is temporarily locked. Responses are
 - Login always creates a fresh token. Logout deletes the current server session
   and expires the cookie; repeating logout remains safe.
 - Missing, malformed, expired or revoked sessions are indistinguishable to the
-  caller and produce `401` on `/app`.
+  caller.
 
 Unsafe browser requests pass through Go's `http.CrossOriginProtection` in
 addition to `SameSite=Strict`. Safe HTTP methods never mutate state.
+
+### Amendment 2026-07-30 — F12 browser re-authentication
+
+When a session is missing, malformed, expired or revoked, the `/app` middleware
+selects one response by request type:
+
+| Request | Response |
+|---|---|
+| HTMX (`HX-Request: true`) | `401` plus `HX-Redirect: /login` |
+| HTML navigation (`Sec-Fetch-Mode: navigate` or `Accept: text/html`) | `303` to `/login?next=<original app path and query>` |
+| other client | `401` text response |
+
+HTMX takes precedence when both its header and `Accept: text/html` are present.
+The `next` value is derived only from the current local `/app` request URI and
+query-encoded by the server; no caller-supplied return URL is accepted. A store
+failure remains `503` and never masquerades as an expired session.
+
+`HX-Redirect` is intentionally carried on the `401`, not a 3xx: HTMX's official
+documentation states that it does not process response headers on 3xx responses.
+See [HTMX `HX-Redirect`](https://htmx.org/headers/hx-redirect/) (verified
+2026-07-30). The frontend owns `GET /login`; `POST /auth/login` is unchanged.
 
 ## Password contract
 

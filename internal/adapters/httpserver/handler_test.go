@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -156,6 +157,78 @@ func TestRequireStaffSessionRejectsMissingInvalidAndUnavailableSessions(t *testi
 				t.Fatal("authentication response is cacheable")
 			}
 		})
+	}
+}
+
+func TestRequireStaffSessionSelectsBrowserReauthenticationResponse(t *testing.T) {
+	tests := []struct {
+		name         string
+		withCookie   bool
+		verifierErr  error
+		headers      map[string]string
+		wantStatus   int
+		wantLocation string
+		wantHX       string
+	}{
+		{
+			name: "navigation by fetch mode", headers: map[string]string{"Sec-Fetch-Mode": "navigate"},
+			wantStatus: http.StatusSeeOther, wantLocation: "/login?next=%2Fapp%2Fplanning%3Fday%3D2030-01-02",
+		},
+		{
+			name: "navigation by accept", withCookie: true, verifierErr: &domain.UnauthorizedError{},
+			headers:    map[string]string{"Accept": "text/html,application/xhtml+xml"},
+			wantStatus: http.StatusSeeOther, wantLocation: "/login?next=%2Fapp%2Fplanning%3Fday%3D2030-01-02",
+		},
+		{
+			name: "htmx takes precedence", withCookie: true, verifierErr: &domain.UnauthorizedError{},
+			headers:    map[string]string{"HX-Request": "true", "Accept": "text/html"},
+			wantStatus: http.StatusUnauthorized, wantHX: "/login",
+		},
+		{
+			name: "store failure is not session expiry", withCookie: true, verifierErr: errors.New("database down"),
+			headers: map[string]string{"Sec-Fetch-Mode": "navigate"}, wantStatus: http.StatusServiceUnavailable,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			called := false
+			handler := requireStaffSession(sessionVerifierStub{err: test.verifierErr}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+			request := httptest.NewRequest(http.MethodGet, "/app/planning?day=2030-01-02", nil)
+			if test.withCookie {
+				request.AddCookie(&http.Cookie{Name: coreauth.SessionCookieName, Value: "session-token"})
+			}
+			for name, value := range test.headers {
+				request.Header.Set(name, value)
+			}
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != test.wantStatus || called {
+				t.Fatalf("status=%d want=%d called=%v body=%q", response.Code, test.wantStatus, called, response.Body.String())
+			}
+			if got := response.Header().Get("Location"); got != test.wantLocation {
+				t.Fatalf("Location = %q, want %q", got, test.wantLocation)
+			}
+			if got := response.Header().Get("HX-Redirect"); got != test.wantHX {
+				t.Fatalf("HX-Redirect = %q, want %q", got, test.wantHX)
+			}
+		})
+	}
+}
+
+func TestSessionNavigationNextCannotBecomeOpenRedirect(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/app?next=https://attacker.example", nil)
+	request.Header.Set("Accept", "text/html")
+	response := httptest.NewRecorder()
+	requireStaffSession(sessionVerifierStub{}, http.NotFoundHandler()).ServeHTTP(response, request)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303", response.Code)
+	}
+	location, err := url.Parse(response.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse Location: %v", err)
+	}
+	if location.IsAbs() || location.Path != "/login" || !strings.HasPrefix(location.Query().Get("next"), "/app?") {
+		t.Fatalf("unsafe login redirect = %q", location.String())
 	}
 }
 

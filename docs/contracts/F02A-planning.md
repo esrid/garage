@@ -138,7 +138,7 @@ there is no caller-controlled `return_to` open redirect.
 
 | Condition | Status |
 |---|---:|
-| unauthenticated / tenant missing | `401` |
+| unauthenticated / tenant missing | F09/F12 session response (`401` or browser login redirect) |
 | invalid form or transition | `422` |
 | appointment/customer/vehicle not found in tenant | `404` |
 | slot lost, capacity full, duplicate resource or idempotency mismatch | `409` |
@@ -165,9 +165,10 @@ HTML and must treat unknown values as `unavailable`. The error redirect omits
 one when the requested resource/provider cannot be read. The planning page's
 existing default-day behavior applies.
 
-Authentication (`401`) and cross-origin protection (`403`) run before the
-mutation handler and retain their status codes. Success redirects, routes and
-form fields are unchanged. This amendment resolves mini-task MT-01.
+Authentication and cross-origin protection run before the mutation handler.
+Cross-origin rejection remains `403`; missing/invalid sessions follow the F12
+browser/API response matrix in `F09-authentication.md`. Success redirects,
+routes and form fields are unchanged. This amendment resolves mini-task MT-01.
 
 ## F04 dashboard adapter
 

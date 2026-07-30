@@ -7,7 +7,9 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	coreauth "github.com/esrid/garage/internal/core/auth"
@@ -96,14 +98,14 @@ func requireStaffSession(verifier sessionVerifier, next http.Handler) http.Handl
 		w.Header().Set("Cache-Control", "no-store")
 		cookie, err := r.Cookie(coreauth.SessionCookieName)
 		if err != nil {
-			http.Error(w, "authentication required", http.StatusUnauthorized)
+			writeSessionRequired(w, r)
 			return
 		}
 		identity, err := verifier.Resume(r.Context(), cookie.Value)
 		if err != nil {
 			var unauthorized *domain.UnauthorizedError
 			if errors.As(err, &unauthorized) {
-				http.Error(w, "authentication required", http.StatusUnauthorized)
+				writeSessionRequired(w, r)
 				return
 			}
 			http.Error(w, "authentication service unavailable", http.StatusServiceUnavailable)
@@ -113,6 +115,21 @@ func requireStaffSession(verifier sessionVerifier, next http.Handler) http.Handl
 		ctx = tenant.WithID(ctx, identity.TenantID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func writeSessionRequired(w http.ResponseWriter, r *http.Request) {
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("HX-Request")), "true") {
+		w.Header().Set("HX-Redirect", "/login")
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	acceptsHTML := strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Mode")), "navigate") || acceptsHTML {
+		query := url.Values{"next": {r.URL.RequestURI()}}
+		http.Redirect(w, r, "/login?"+query.Encode(), http.StatusSeeOther)
+		return
+	}
+	http.Error(w, "authentication required", http.StatusUnauthorized)
 }
 
 func crossOriginProtection(next http.Handler) http.Handler {

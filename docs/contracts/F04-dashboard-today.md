@@ -19,10 +19,10 @@ same fragment the full page embeds, so the page works with JavaScript disabled.
 ## Amendment 2026-07-30 — F09 authentication
 
 Both routes now require a valid staff session before this handler runs. Missing,
-malformed, expired or revoked sessions return `401`; the former degraded `200`
-without tenant context is no longer externally reachable. The provider seam and
-all rendered behavior remain unchanged. See
-`docs/contracts/F09-authentication.md` and mini-task MT-04.
+malformed, expired or revoked sessions follow F09's F12 browser/API response
+matrix; the former degraded `200` without tenant context is no longer externally
+reachable. The provider seam and all rendered behavior remain unchanged. See
+`docs/contracts/F09-authentication.md` and mini-tasks MT-04/MT-06.
 
 ## Who owns what
 
