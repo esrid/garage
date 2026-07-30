@@ -1,4 +1,4 @@
-module github.com/esrid/mon-template-go
+module github.com/esrid/garage
 
 go 1.26.5
 

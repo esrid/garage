@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/esrid/mon-template-go/internal/config"
+	"github.com/esrid/garage/internal/config"
 )
 
 func TestNewWiresReadinessSlice(t *testing.T) {

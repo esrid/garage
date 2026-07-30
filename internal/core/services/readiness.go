@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/esrid/mon-template-go/internal/core/ports"
+	"github.com/esrid/garage/internal/core/ports"
 )
 
 type Readiness struct {

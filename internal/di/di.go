@@ -11,10 +11,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/esrid/mon-template-go/internal/adapters/httpserver"
-	"github.com/esrid/mon-template-go/internal/adapters/stores/sqlite"
-	"github.com/esrid/mon-template-go/internal/config"
-	"github.com/esrid/mon-template-go/internal/core/services"
+	"github.com/esrid/garage/internal/adapters/httpserver"
+	"github.com/esrid/garage/internal/adapters/stores/sqlite"
+	"github.com/esrid/garage/internal/config"
+	"github.com/esrid/garage/internal/core/services"
 )
 
 type App struct {

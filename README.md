@@ -92,7 +92,7 @@ constraint detection.
 
 ## Use as a template
 
-After creating a repository, replace `github.com/esrid/mon-template-go` in
+After creating a repository, replace `github.com/esrid/garage` in
 `go.mod` and Go imports with your module path, then run:
 
 ```sh

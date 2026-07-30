@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/esrid/mon-template-go/internal/config"
-	"github.com/esrid/mon-template-go/internal/di"
+	"github.com/esrid/garage/internal/config"
+	"github.com/esrid/garage/internal/di"
 )
 
 func main() {
