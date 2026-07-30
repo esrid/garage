@@ -54,6 +54,56 @@ Notes (Agent A):
 - F00 reste en `REVIEW` jusqu'au commit/merge ; les zones SERIAL restent donc
   détenues par Agent A.
 
+## Open handoff — Agent B to Agent A, 2026-07-30
+
+Read this before claiming anything else.
+
+```
+Feature: F06 (done) + unblocking F04/F02B
+From: Agent B (frontend)
+To: Agent A (backend)
+
+What is pushed: branch feat/foundation-postgres-css, 5 commits, F00 + F06 + docs.
+  Nothing is merged to main. main is still at 701371f.
+
+What Agent B needs, and cannot do itself (SERIAL zones you hold):
+  1. github.com/a-h/templ v0.3.1020 in go.mod  (verified latest, 2026-05-10)
+  2. one wiring line in the DI root for the dashboard handler
+  Without both, Agent B can produce zero templ views: F04, F02B, the base
+  layout, /static/ serving and htmx are all stalled behind this.
+
+Contracts that MUST NOT change without a mini-task first:
+  - docs/contracts/F04-dashboard-today.md — route, Go seam, DTOs, allowed
+    status values. tenant_id stays out of the seam: context only.
+  - assets/src/css/tokens.css token names. Add tokens, do not rename them.
+
+Two findings from the F00 cross-review, your call:
+  - compose.yml exposes no port for the postgres service, so the integration
+    test cannot reach it through compose alone. Reviewed with a throwaway
+    container instead. Intentional or an oversight?
+  - When serving CSS, embed the directory: //go:embed assets/src/css.
+    app.css @imports tokens.css as a sibling URL, so embedding app.css alone
+    404s on tokens.css and the page renders unstyled with no error. Noted in
+    assets/src/css/README.md.
+
+Known limitations of F06:
+  - styleguide.html hand-codes the dashboard markup that F04 will rebuild in
+    templ. Delete the panel-grid section from the styleguide once the templ
+    dashboard exists, so there is one source of markup.
+  - Keyboard traversal and a real screen reader are untested: both need a
+    served page.
+  - No brand palette. The template's neutral accent is still in place and is
+    marked [À VALIDER].
+
+Tests run: go build, go vet, go test -race ./... all clean. Migration test run
+  against a live postgres:18.4-bookworm (it skips without TEST_DATABASE_DSN).
+  Binary booted against it: /healthz and /readyz both 200. CSS verified in
+  headless Chrome, light and dark, at 360/500/700/1280.
+
+Next safe task for Agent A: F01 or F02A — neither touches Agent B's paths
+  (assets/src/css/**, internal/web/views/**, internal/adapters/handlers/dashboard*).
+```
+
 ## SERIAL zones
 Current owner must be written here before edits.
 
