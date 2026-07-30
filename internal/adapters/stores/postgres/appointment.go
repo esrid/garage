@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -469,7 +469,7 @@ func hasCapacity(entries []appointment.DayEntry, openingID string, start, end ti
 	for timestamp := range events {
 		timestamps = append(timestamps, timestamp)
 	}
-	sort.Slice(timestamps, func(i, j int) bool { return timestamps[i] < timestamps[j] })
+	slices.Sort(timestamps)
 	concurrent := 0
 	for _, timestamp := range timestamps {
 		concurrent += events[timestamp]

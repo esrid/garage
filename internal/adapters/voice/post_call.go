@@ -86,7 +86,7 @@ func NewPostCallWebhook(recorder postCallRecorder, secret, encodedAgentTenants s
 		return nil, fmt.Errorf("post-call webhook: secret must contain 16 to 512 bytes")
 	}
 
-	for _, item := range strings.Split(encodedAgentTenants, ",") {
+	for item := range strings.SplitSeq(encodedAgentTenants, ",") {
 		if strings.Count(item, ":") != 1 {
 			return nil, fmt.Errorf("post-call webhook: each mapping must be agent-id:tenant-uuid")
 		}
@@ -169,7 +169,7 @@ func (h *PostCallWebhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (h *PostCallWebhook) validSignature(rawBody []byte, header string) bool {
 	var timestampValue, signatureValue string
-	for _, part := range strings.Split(header, ",") {
+	for part := range strings.SplitSeq(header, ",") {
 		// The documented format has no spaces, but a provider that starts sending
 		// "t=1,​ v0=..." would otherwise fail every signature at once.
 		part = strings.TrimSpace(part)
@@ -203,7 +203,7 @@ func (h *PostCallWebhook) validSignature(rawBody []byte, header string) bool {
 }
 
 func decodePostCallEvent(rawBody []byte) (postCallEvent, conversation.RecordInput, error) {
-	decoder := json.NewDecoder(strings.NewReader(string(rawBody)))
+	decoder := json.NewDecoder(bytes.NewReader(rawBody))
 	decoder.UseNumber()
 	var event postCallEvent
 	if err := decoder.Decode(&event); err != nil {
@@ -221,7 +221,7 @@ func decodePostCallEvent(rawBody []byte) (postCallEvent, conversation.RecordInpu
 	}
 
 	var metadata postCallMetadata
-	metadataDecoder := json.NewDecoder(strings.NewReader(string(event.Data.Metadata)))
+	metadataDecoder := json.NewDecoder(bytes.NewReader(event.Data.Metadata))
 	metadataDecoder.UseNumber()
 	if err := metadataDecoder.Decode(&metadata); err != nil {
 		return event, conversation.RecordInput{}, err

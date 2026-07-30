@@ -7,7 +7,6 @@ import (
 
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/core/followup"
-	"github.com/esrid/garage/internal/core/tenant"
 )
 
 const maxFollowUpBodyBytes = 16 << 10
@@ -41,33 +40,13 @@ func NewFollowUpTool(service *followup.Service, authenticator *TokenAuthenticato
 }
 
 func (h *FollowUpTool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	ctx, err := h.authenticator.Authenticate(r.Context(), r.Header.Get("Authorization"))
-	if err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeFollowUpError(w, err)
-		return
-	}
-	tenantID, err := tenant.IDFromContext(ctx)
-	if err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeFollowUpError(w, err)
-		return
-	}
-	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
-		writeFollowUpError(w, followUpValidation())
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, maxFollowUpBodyBytes)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
 	var input followUpToolRequest
-	if err := decoder.Decode(&input); err != nil {
-		writeFollowUpError(w, followUpValidation())
-		return
-	}
-	if err := ensureJSONEnd(decoder); err != nil {
+	ctx, tenantID, err := decodeToolRequest(w, r, h.authenticator, maxFollowUpBodyBytes, &input)
+	if err != nil {
+		if errors.Is(err, errToolUnauthorized) {
+			writeFollowUpError(w, &domain.UnauthorizedError{Message: "voice tool authentication required"})
+			return
+		}
 		writeFollowUpError(w, followUpValidation())
 		return
 	}

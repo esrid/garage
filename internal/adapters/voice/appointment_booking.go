@@ -14,7 +14,6 @@ import (
 
 	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/domain"
-	"github.com/esrid/garage/internal/core/tenant"
 )
 
 const maxAppointmentToolBodyBytes = 16 << 10
@@ -66,13 +65,10 @@ func NewAppointmentTools(scheduling *appointment.Service, authenticator *TokenAu
 }
 
 func (h *AppointmentTools) Availability(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	ctx, ok := h.authenticate(w, r, false)
-	if !ok {
-		return
-	}
 	var input availabilityRequest
-	if !decodeAppointmentToolRequest(w, r, &input, false) {
+	ctx, _, err := decodeToolRequest(w, r, h.authenticator, maxAppointmentToolBodyBytes, &input)
+	if err != nil {
+		writeAppointmentToolError(w, appointmentToolRequestError(err), false)
 		return
 	}
 	day, err := parseAppointmentToolTime(input.Day)
@@ -106,18 +102,10 @@ func (h *AppointmentTools) Availability(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *AppointmentTools) Book(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	ctx, ok := h.authenticate(w, r, true)
-	if !ok {
-		return
-	}
-	tenantID, err := tenant.IDFromContext(ctx)
-	if err != nil {
-		writeAppointmentToolError(w, err, true)
-		return
-	}
 	var input bookingRequest
-	if !decodeAppointmentToolRequest(w, r, &input, true) {
+	ctx, tenantID, err := decodeToolRequest(w, r, h.authenticator, maxAppointmentToolBodyBytes, &input)
+	if err != nil {
+		writeAppointmentToolError(w, appointmentToolRequestError(err), true)
 		return
 	}
 	input.ConversationID = strings.TrimSpace(input.ConversationID)
@@ -184,40 +172,6 @@ func (h *AppointmentTools) tenantLocation(ctx context.Context, instant time.Time
 	return location, nil
 }
 
-func (h *AppointmentTools) authenticate(w http.ResponseWriter, r *http.Request, booking bool) (context.Context, bool) {
-	ctx, err := h.authenticator.Authenticate(r.Context(), r.Header.Get("Authorization"))
-	if err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeAppointmentToolError(w, err, booking)
-		return r.Context(), false
-	}
-	if _, err := tenant.IDFromContext(ctx); err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeAppointmentToolError(w, err, booking)
-		return r.Context(), false
-	}
-	return ctx, true
-}
-
-func decodeAppointmentToolRequest(w http.ResponseWriter, r *http.Request, destination any, booking bool) bool {
-	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
-		writeAppointmentToolError(w, appointmentToolValidation("content_type"), booking)
-		return false
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxAppointmentToolBodyBytes)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(destination); err != nil {
-		writeAppointmentToolError(w, appointmentToolValidation("body"), booking)
-		return false
-	}
-	if err := ensureJSONEnd(decoder); err != nil {
-		writeAppointmentToolError(w, appointmentToolValidation("body"), booking)
-		return false
-	}
-	return true
-}
-
 func parseAppointmentToolTime(value string) (time.Time, error) {
 	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
 	if err != nil {
@@ -251,6 +205,15 @@ func appointmentToolIdempotencyKey(input bookingRequest, start time.Time, durati
 	}
 	hash := sha256.Sum256([]byte(canonical.String()))
 	return "voice-book-" + hex.EncodeToString(hash[:])
+}
+
+// appointmentToolRequestError turns the shared preamble's reason into the error
+// this tool already knows how to answer with.
+func appointmentToolRequestError(err error) error {
+	if errors.Is(err, errToolUnauthorized) {
+		return &domain.UnauthorizedError{Message: "voice tool authentication required"}
+	}
+	return appointmentToolValidation("body")
 }
 
 func appointmentToolValidation(field string) error {

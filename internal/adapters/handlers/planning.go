@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/a-h/templ"
-
 	"github.com/esrid/garage/internal/core/appointment"
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/web/views"
@@ -52,14 +50,14 @@ func NewPlanning(reader PlanningReader) *Planning {
 // Page serves GET /app/planning.
 func (h *Planning) Page(w http.ResponseWriter, r *http.Request) {
 	data, status := h.load(r)
-	h.render(w, r, status, views.PlanningPage(data))
+	renderPage(w, r, status, views.PlanningPage(data))
 }
 
 // Fragment serves GET /app/planning/day: the day block alone, for the duration
 // filter's htmx swap.
 func (h *Planning) Fragment(w http.ResponseWriter, r *http.Request) {
 	data, status := h.load(r)
-	h.render(w, r, status, views.PlanningDay(data))
+	renderPage(w, r, status, views.PlanningDay(data))
 }
 
 // load builds the view data and the status to answer with.
@@ -87,17 +85,14 @@ func (h *Planning) load(r *http.Request) (views.Planning, int) {
 	if err != nil {
 		return h.unavailable(ctx, err, minutes, alert)
 	}
-	if raw := strings.TrimSpace(query.Get("day")); raw != "" {
-		requested, parseErr := time.ParseInLocation(time.DateOnly, raw, day.Date.Location())
-		if parseErr != nil {
-			notices = append(notices, "Date illisible : voici la journée en cours.")
-		} else {
-			// Midday of the requested date: the backend resolves the day around this
-			// instant, and midnight would sit on the boundary a timezone shift moves.
-			day, err = h.reader.Day(ctx, requested.Add(12*time.Hour))
-			if err != nil {
-				return h.unavailable(ctx, err, minutes, alert)
-			}
+	switch requested, dayErr := requestedDay(query.Get("day"), day.Date.Location()); {
+	case errors.Is(dayErr, errNoDayParameter):
+		// Nothing asked for: the current day is already loaded.
+	case dayErr != nil:
+		notices = append(notices, dayUnreadableNotice)
+	default:
+		if day, err = h.reader.Day(ctx, requested); err != nil {
+			return h.unavailable(ctx, err, minutes, alert)
 		}
 	}
 
@@ -245,13 +240,4 @@ func (h *Planning) unavailable(ctx context.Context, err error, minutes int, aler
 		Degraded:        true,
 		Notices:         []string{"Le planning est momentanément indisponible. Réessayez dans un instant."},
 	}, http.StatusOK
-}
-
-func (h *Planning) render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
-	// Operational data: a cached copy shown after a back navigation would tell the
-	// desk a slot is free when it was taken ten minutes ago.
-	w.Header().Set("Cache-Control", "no-store")
-	// templ.Handler buffers, so a mid-render error cannot emit half a page under a
-	// 200.
-	templ.Handler(component, templ.WithStatus(status)).ServeHTTP(w, r)
 }

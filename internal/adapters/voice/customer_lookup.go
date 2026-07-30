@@ -3,12 +3,10 @@ package voice
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/core/domain"
-	"github.com/esrid/garage/internal/core/tenant"
 )
 
 const maxLookupBodyBytes = 8 << 10
@@ -37,33 +35,13 @@ func NewCustomerLookup(customers *customer.Service, authenticator *TokenAuthenti
 }
 
 func (h *CustomerLookup) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	ctx, err := h.authenticator.Authenticate(r.Context(), r.Header.Get("Authorization"))
-	if err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeLookupJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
-		return
-	}
-	tenantID, err := tenant.IDFromContext(ctx)
-	if err != nil {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		writeLookupJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
-		return
-	}
-	if !isMediaType(r.Header.Get("Content-Type"), "application/json") {
-		writeLookupJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid request"})
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, maxLookupBodyBytes)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
 	var input lookupRequest
-	if err := decoder.Decode(&input); err != nil {
-		writeLookupJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid request"})
-		return
-	}
-	if err := ensureJSONEnd(decoder); err != nil {
+	ctx, tenantID, err := decodeToolRequest(w, r, h.authenticator, maxLookupBodyBytes, &input)
+	if err != nil {
+		if errors.Is(err, errToolUnauthorized) {
+			writeLookupJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
+			return
+		}
 		writeLookupJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": "invalid request"})
 		return
 	}
@@ -93,17 +71,6 @@ func (h *CustomerLookup) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			FirstName: found.FirstName,
 		},
 	})
-}
-
-func ensureJSONEnd(decoder *json.Decoder) error {
-	var extra any
-	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return errors.New("multiple JSON values")
-		}
-		return err
-	}
-	return nil
 }
 
 func writeLookupJSON(w http.ResponseWriter, status int, value any) {

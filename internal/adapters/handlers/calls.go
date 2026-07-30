@@ -5,10 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
-
-	"github.com/a-h/templ"
 
 	"github.com/esrid/garage/internal/core/domain"
 	"github.com/esrid/garage/internal/web/views"
@@ -46,7 +43,7 @@ func (h *Calls) Register(mux *http.ServeMux) {
 func (h *Calls) Day(w http.ResponseWriter, r *http.Request) {
 	history, notices := h.day(r)
 	history.Notices = append(history.Notices, notices...)
-	h.render(w, r, http.StatusOK, views.CallsPage(history))
+	renderPage(w, r, http.StatusOK, views.CallsPage(history))
 }
 
 // One serves GET /app/calls/{id}.
@@ -57,7 +54,7 @@ func (h *Calls) One(w http.ResponseWriter, r *http.Request) {
 		if errors.As(err, &notFound) {
 			// One page for an unknown id and for another tenant's call: telling the two
 			// apart is how an id becomes an existence oracle.
-			h.render(w, r, http.StatusNotFound, views.CallProblemPage(
+			renderPage(w, r, http.StatusNotFound, views.CallProblemPage(
 				"Appel introuvable",
 				"Cet appel n'existe pas, ou n'appartient pas à cet atelier.",
 			))
@@ -66,13 +63,13 @@ func (h *Calls) One(w http.ResponseWriter, r *http.Request) {
 		// Not "introuvable": we could not look. Saying the call does not exist would
 		// be inventing a fact out of an outage.
 		slog.ErrorContext(r.Context(), "calls: call unavailable", "err", err)
-		h.render(w, r, http.StatusOK, views.CallProblemPage(
+		renderPage(w, r, http.StatusOK, views.CallProblemPage(
 			"Appel indisponible",
 			"Cet appel n'a pas pu être lu. Réessayez dans un instant.",
 		))
 		return
 	}
-	h.render(w, r, http.StatusOK, views.CallPage(call))
+	renderPage(w, r, http.StatusOK, views.CallPage(call))
 }
 
 // day resolves the requested civil date and reads it.
@@ -87,17 +84,14 @@ func (h *Calls) day(r *http.Request) (views.CallHistory, []string) {
 	if err != nil {
 		return h.unavailable(ctx, err)
 	}
-	raw := strings.TrimSpace(r.URL.Query().Get("day"))
-	if raw == "" {
+	requested, dayErr := requestedDay(r.URL.Query().Get("day"), history.Day.Location())
+	switch {
+	case errors.Is(dayErr, errNoDayParameter):
 		return history, nil
+	case dayErr != nil:
+		return history, []string{dayUnreadableNotice}
 	}
-	requested, parseErr := time.ParseInLocation(time.DateOnly, raw, history.Day.Location())
-	if parseErr != nil {
-		return history, []string{"Date illisible : voici la journée en cours."}
-	}
-	// Midday of the requested date: the backend resolves the day around this
-	// instant, and midnight sits on the boundary a timezone shift moves.
-	requestedHistory, err := h.reader.Calls(ctx, requested.Add(12*time.Hour))
+	requestedHistory, err := h.reader.Calls(ctx, requested)
 	if err != nil {
 		return h.unavailable(ctx, err)
 	}
@@ -114,12 +108,4 @@ func (h *Calls) unavailable(ctx context.Context, err error) (views.CallHistory, 
 		}, []string{
 			"L'historique des appels est momentanément indisponible. Réessayez dans un instant.",
 		}
-}
-
-func (h *Calls) render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
-	// Operational data, and a transcript is customer content: never cached.
-	w.Header().Set("Cache-Control", "no-store")
-	// templ.Handler buffers, so a mid-render error cannot emit half a page under a
-	// 200.
-	templ.Handler(component, templ.WithStatus(status)).ServeHTTP(w, r)
 }

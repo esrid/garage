@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/a-h/templ"
-
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -37,13 +35,13 @@ func NewDashboard(provider TodayProvider) *Dashboard {
 // Page serves GET /app.
 func (d *Dashboard) Page(w http.ResponseWriter, r *http.Request) {
 	data, degraded := d.today(r)
-	d.render(w, r, views.DashboardPage(data, degraded))
+	renderPage(w, r, http.StatusOK, views.DashboardPage(data, degraded))
 }
 
 // Fragment serves GET /app/today: the panels alone, for an htmx refresh.
 func (d *Dashboard) Fragment(w http.ResponseWriter, r *http.Request) {
 	data, degraded := d.today(r)
-	d.render(w, r, views.TodayPanels(data, degraded))
+	renderPage(w, r, http.StatusOK, views.TodayPanels(data, degraded))
 }
 
 // today never returns an error: a failing provider degrades the page instead of
@@ -60,13 +58,4 @@ func (d *Dashboard) today(r *http.Request) (views.Today, bool) {
 		data.Day = day
 	}
 	return data, false
-}
-
-func (d *Dashboard) render(w http.ResponseWriter, r *http.Request, component templ.Component) {
-	// The day view is live operational data: a cached copy shown after a back
-	// navigation would be misleading.
-	w.Header().Set("Cache-Control", "no-store")
-	// templ.Handler buffers by default, so a mid-render error cannot emit half
-	// a page followed by a 200.
-	templ.Handler(component).ServeHTTP(w, r)
 }
