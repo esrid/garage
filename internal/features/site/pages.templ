@@ -230,8 +230,11 @@ templ SiteDemo() {
 		<p class="site-text">Comptez quinze minutes. Aucune installation chez vous.</p>
 	}
 	@siteSection("Demander la démo") {
-		@sitePlaceholder("Numéro de démo et adresse de contact à renseigner avant mise en ligne.")
-		<p class="site-text">En attendant, la page contact liste les moyens de nous joindre.</p>
+		<p class="site-text">
+			Écrivez à <strong>contact@bureau-mq.com</strong> avec vos horaires et deux
+			prestations : le numéro de test est configuré dans la journée.
+		</p>
+		@sitePlaceholder("Numéro de démo à renseigner une fois la ligne configurée.")
 		<div class="cta-row">
 			<a class="btn" href="/contact">Aller au contact</a>
 		</div>
@@ -244,7 +247,11 @@ templ SiteContact() {
 		"Un interlocuteur unique, qui connaît le produit et l'atelier.",
 	)
 	@siteSection("Nous joindre") {
-		@sitePlaceholder("Téléphone, adresse e-mail et horaires de réponse à renseigner par le fondateur.")
+		@siteBullets([]string{
+			"Par e-mail : contact@bureau-mq.com.",
+			"Basé en Martinique, fuseau UTC−4.",
+		})
+		@sitePlaceholder("Numéro de téléphone et horaires de réponse à renseigner.")
 		<p class="site-text">
 			Aucun formulaire pour l'instant : il n'enverrait rien. Il arrivera avec la
 			boîte d'envoi.
@@ -266,10 +273,18 @@ templ SiteContact() {
 templ SiteLegalNotice() {
 	@views.Hero("Mentions légales", "Informations sur l'éditeur du site et son hébergeur.")
 	@siteSection("Éditeur") {
-		@sitePlaceholder("Dénomination, forme juridique, SIREN/SIRET, adresse du siège, responsable de la publication.")
+		@siteBullets([]string{
+			"Entreprise individuelle Alexandre Désir.",
+			"SIRET 105 156 814 00011.",
+			"Responsable de la publication : Alexandre Désir.",
+			"Contact : contact@bureau-mq.com.",
+		})
+		@sitePlaceholder("Adresse de l'établissement et numéro de téléphone à renseigner : obligatoires dans des mentions légales, absents de tous les projets.")
 	}
 	@siteSection("Hébergeur") {
-		@sitePlaceholder("Nom, adresse et téléphone de l'hébergeur du site.")
+		// Legally required and genuinely unknown: the sibling projects name a
+		// "VPS de production" and never the company behind it.
+		@sitePlaceholder("Dénomination, adresse et téléphone de l'hébergeur. Le site est servi depuis un VPS ; le prestataire doit être nommé ici.")
 	}
 	@siteSection("Propriété intellectuelle") {
 		<p class="site-text">
@@ -294,8 +309,15 @@ templ SitePrivacy() {
 			rendre compte. Aucune revente, aucune publicité.
 		</p>
 	}
-	@siteSection("Durées, base légale et droits") {
-		@sitePlaceholder("Durées de conservation, base légale, sous-traitants, coordonnées pour exercer vos droits et adresse du délégué à la protection des données.")
+	@siteSection("Qui est responsable") {
+		@siteBullets([]string{
+			"Entreprise individuelle Alexandre Désir, SIRET 105 156 814 00011.",
+			"Pour exercer vos droits : contact@bureau-mq.com.",
+			"Aucun délégué à la protection des données n'est désigné : la structure n'y est pas tenue.",
+		})
+	}
+	@siteSection("Durées, base légale et sous-traitants") {
+		@sitePlaceholder("Durées de conservation par donnée, base légale de chaque traitement et liste des sous-traitants (voix, hébergement, paiement) à établir avant la mise en ligne.")
 	}
 	@siteSection("Traceurs") {
 		<p class="site-text">
@@ -307,8 +329,14 @@ templ SitePrivacy() {
 
 templ SiteTermsOfSale() {
 	@views.Hero("Conditions générales de vente", "Ce que couvre l'abonnement et comment il se termine.")
+	@siteSection("Vendeur") {
+		@siteBullets([]string{
+			"Entreprise individuelle Alexandre Désir, SIRET 105 156 814 00011.",
+			"Contact : contact@bureau-mq.com.",
+		})
+	}
 	@siteSection("Objet, prix et durée") {
-		@sitePlaceholder("Prestations couvertes, prix, quotas, facturation du dépassement, durée d'engagement, résiliation, droit applicable.")
+		@sitePlaceholder("Prestations couvertes, prix, quotas, facturation du dépassement, durée d'engagement, résiliation et droit applicable à rédiger avant la première vente.")
 	}
 	@siteSection("Ce qui est déjà tranché") {
 		@siteBullets([]string{
