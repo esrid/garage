@@ -12,11 +12,15 @@ import (
 	"time"
 
 	"github.com/esrid/garage/internal/core/appointment"
+	"github.com/esrid/garage/internal/core/conversation"
+	"github.com/esrid/garage/internal/core/customer"
 	"github.com/esrid/garage/internal/features/calls"
+	"github.com/esrid/garage/internal/features/customers"
 	"github.com/esrid/garage/internal/features/dashboard"
 	"github.com/esrid/garage/internal/features/identity"
 	"github.com/esrid/garage/internal/features/planning"
 	"github.com/esrid/garage/internal/features/site"
+	"github.com/esrid/garage/internal/features/usage"
 	"github.com/esrid/garage/internal/web/views"
 )
 
@@ -93,6 +97,8 @@ func a11yPages(t *testing.T) map[string]string {
 		"/mentions-legales":            renderMux(t, publicMux(), "/mentions-legales"),
 		"/login":                       renderMux(t, publicMux(), "/login?error=invalid&next=/app/planning"),
 		"/app/calls":                   render(t, calls.NewCalls(callsStub{}).Day, "/app/calls"),
+		"/app/customers":               render(t, customers.NewHandler(customersStub{}).Search, "/app/customers"),
+		"/app/usage":                   render(t, usage.NewHandler(usageStub{}).Page, "/app/usage"),
 		"/app/calls/conv-1":            renderMux(t, callsMux(), "/app/calls/conv-1"),
 	}
 }
@@ -210,7 +216,7 @@ func TestEveryFormControlHasALabel(t *testing.T) {
 func TestCurrentPageIsMarkedExactlyOnce(t *testing.T) {
 	// The routes the shells put in their navigation. A detail page under one of
 	// them marks that section: /app/calls/<id> is still "Appels".
-	navigation := []string{"/app", "/app/planning", "/app/calls", "/tarifs", "/login"}
+	navigation := []string{"/app", "/app/planning", "/app/calls", "/app/customers", "/app/usage", "/tarifs", "/login"}
 
 	for path, body := range a11yPages(t) {
 		count := strings.Count(body, `aria-current="page"`)
@@ -354,4 +360,30 @@ func TestWritePreviews(t *testing.T) {
 			t.Fatalf("write %s: %v", file, err)
 		}
 	}
+}
+
+type customersStub struct{}
+
+func (customersStub) Search(context.Context, string) ([]customer.Match, error) {
+	return []customer.Match{{
+		Customer: customer.Customer{ID: "c1", FirstName: "Marie", LastName: "Lubin", Phone: "+596696000001"},
+		Plates:   []string{"AB-123-CD"},
+	}}, nil
+}
+
+func (customersStub) File(context.Context, string) (customer.File, error) {
+	return customer.File{Customer: customer.Customer{ID: "c1", FirstName: "Marie", Phone: "+596696000001"}}, nil
+}
+
+type usageStub struct{}
+
+func (usageStub) Usage(_ context.Context, month time.Time) (conversation.Usage, error) {
+	local := month.In(martinique)
+	return conversation.Usage{
+		Month:        time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, martinique),
+		Timezone:     "America/Martinique",
+		Calls:        60,
+		Seconds:      37_000,
+		QuotaMinutes: 750,
+	}, nil
 }

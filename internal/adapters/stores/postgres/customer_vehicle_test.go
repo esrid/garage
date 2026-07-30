@@ -144,3 +144,84 @@ func TestCustomerVehicleTenantIsolation(t *testing.T) {
 		t.Fatalf("vehicles without plates = %#v, %v", withoutPlates, err)
 	}
 }
+
+// The search is what a desk uses when a number rings: it has to find by name, by
+// number and by plate, and never reach into another workshop.
+func TestSearchCustomersMatchesNamePhoneAndPlateWithinTheTenant(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_DSN")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_DSN is required for the PostgreSQL integration test")
+	}
+	ctx := context.Background()
+	store, err := Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	tenantService := tenant.NewService(store)
+	workshopA, err := tenantService.Create(ctx, tenant.CreateInput{Name: "Garage search A"})
+	if err != nil {
+		t.Fatalf("create tenant A: %v", err)
+	}
+	workshopB, err := tenantService.Create(ctx, tenant.CreateInput{Name: "Garage search B"})
+	if err != nil {
+		t.Fatalf("create tenant B: %v", err)
+	}
+	ctxA := tenant.WithID(ctx, workshopA.ID)
+	ctxB := tenant.WithID(ctx, workshopB.ID)
+
+	customers := customer.NewService(store)
+	known, err := customers.Create(ctxA, customer.CreateInput{FirstName: "Marie", LastName: "Lubin", Phone: "+596696400001"})
+	if err != nil {
+		t.Fatalf("create customer: %v", err)
+	}
+	if _, err := vehicle.NewService(store).Create(ctxA, vehicle.CreateInput{
+		CustomerID: known.ID, Plate: "QW-321-ER", Make: "Renault", Model: "Clio",
+	}); err != nil {
+		t.Fatalf("create vehicle: %v", err)
+	}
+	if _, err := customers.Create(ctxB, customer.CreateInput{FirstName: "Marie", LastName: "Autre", Phone: "+596696400002"}); err != nil {
+		t.Fatalf("create other tenant customer: %v", err)
+	}
+
+	reads := customer.NewReadService(store)
+	for name, query := range map[string]string{"name": "lubin", "phone": "696400001", "plate": "qw-321"} {
+		t.Run(name, func(t *testing.T) {
+			matches, err := reads.Search(ctxA, query)
+			if err != nil {
+				t.Fatalf("Search(%q) error = %v", query, err)
+			}
+			if len(matches) != 1 || matches[0].ID != known.ID {
+				t.Fatalf("Search(%q) returned %d matches", query, len(matches))
+			}
+			if len(matches[0].Plates) != 1 || matches[0].Plates[0] != "QW-321-ER" {
+				t.Errorf("the match lost its plate: %+v", matches[0].Plates)
+			}
+		})
+	}
+
+	// The other workshop's Marie must never appear.
+	matches, err := reads.Search(ctxA, "marie")
+	if err != nil {
+		t.Fatalf("Search() error = %v", err)
+	}
+	for _, match := range matches {
+		if match.TenantID != workshopA.ID {
+			t.Fatalf("search crossed a tenant boundary: %+v", match)
+		}
+	}
+
+	// A file from the wrong workshop is not found, not forbidden: an id must not
+	// answer whether someone exists elsewhere.
+	if _, err := reads.File(ctxB, known.ID); err == nil {
+		t.Error("a customer file crossed a tenant boundary")
+	}
+	file, err := reads.File(ctxA, known.ID)
+	if err != nil {
+		t.Fatalf("File() error = %v", err)
+	}
+	if len(file.Vehicles) != 1 || file.Vehicles[0].Plate != "QW-321-ER" {
+		t.Errorf("file vehicles = %+v", file.Vehicles)
+	}
+}

@@ -1,0 +1,107 @@
+package customers
+
+import "time"
+import "github.com/esrid/garage/internal/core/customer"
+import "github.com/esrid/garage/internal/web/views"
+
+// SearchPage is GET /app/customers. A native search input and a GET form: the
+// browser already knows how to submit this, and the result is a normal URL the
+// desk can keep open.
+templ SearchPage(view SearchView) {
+	@views.Layout("Clients — Atelier IA", "/app/customers") {
+		<div class="page-header">
+			<h1>Clients</h1>
+			<p class="page-subtitle">Nom, numéro ou plaque</p>
+		</div>
+		<form class="day-picker" method="get" action="/app/customers">
+			<label class="visually-hidden" for="customer-search">Rechercher un client</label>
+			<input
+				class="input"
+				type="search"
+				id="customer-search"
+				name="q"
+				value={ view.Query }
+				placeholder="Lubin, 0696…, AB-123-CD"
+				autocomplete="off"
+			/>
+			<button class="btn btn-secondary" type="submit">Rechercher</button>
+		</form>
+		if view.Notice != "" {
+			<p class="notice" role="status">{ view.Notice }</p>
+		}
+		if !view.Degraded {
+			@views.Panel("Résultats", "panel-customers", len(view.Matches), "clients") {
+				for _, match := range view.Matches {
+					<li class="item">
+						<span class="item-title">
+							<a href={ templ.SafeURL("/app/customers/" + match.ID) }>{ title(match.Customer) }</a>
+						</span>
+						<span class="item-detail">
+							{ views.OrDash(match.Phone) }
+							{ " · " + plateList(match.Plates) }
+						</span>
+					</li>
+				}
+			}
+		}
+	}
+}
+
+// FilePage is GET /app/customers/{id}: one customer, what they drive, and when
+// they came.
+templ FilePage(file customer.File) {
+	@views.Layout("Fiche client — Atelier IA", "/app/customers") {
+		<div class="page-header">
+			<h1>{ title(file.Customer) }</h1>
+			<p class="page-subtitle">{ views.OrDash(file.Customer.Phone) }</p>
+			<a class="btn btn-secondary page-action" href="/app/customers">Retour aux clients</a>
+		</div>
+		<div class="panel-grid">
+			@views.Panel("Véhicules", "panel-vehicles", len(file.Vehicles), "véhicules") {
+				for _, vehicle := range file.Vehicles {
+					<li class="item">
+						<span class="item-title">{ vehicleLabel(vehicle) }</span>
+						if vehicle.Plate != "" {
+							<span class="item-plate">{ vehicle.Plate }</span>
+						}
+					</li>
+				}
+			}
+			@views.Panel("Passages", "panel-visits", len(file.Visits), "passages") {
+				for _, visit := range file.Visits {
+					<li class="item">
+						<time class="item-time" datetime={ visit.Start.Format(time.RFC3339) }>
+							{ visit.Start.Format("02/01") }
+						</time>
+						<span class="item-title">{ views.OrDash(visit.ServiceLabel) }</span>
+						<span class={ "badge", views.BadgeTone(visit.Status) }>{ views.StatusLabel(visit.Status) }</span>
+						<span class="item-detail">
+							{ visit.Start.Format("15:04") }
+							if visit.Plate != "" {
+								{ " · " + visit.Plate }
+							}
+						</span>
+					</li>
+				}
+			}
+		</div>
+		<p class="site-note">
+			{ "Fiche créée le " + file.Customer.CreatedAt.Format("02/01/2006") + "." }
+			Les fiches sont écrites par l'assistant pendant les appels.
+		</p>
+	}
+}
+
+// ProblemPage covers the two ways a file fails to show up. Different words for
+// different facts: "introuvable" and "indisponible" are not the same thing.
+templ ProblemPage(title string, message string) {
+	@views.Layout(title + " — Atelier IA", "/app/customers") {
+		<div class="page-header">
+			<h1>{ title }</h1>
+		</div>
+		<p class="site-text">{ message }</p>
+		<div class="cta-row">
+			<a class="btn btn-secondary" href="/app/customers">Retour aux clients</a>
+		</div>
+	}
+}
