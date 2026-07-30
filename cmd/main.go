@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_ "time/tzdata"
 
 	"github.com/esrid/garage/internal/config"
 	"github.com/esrid/garage/internal/di"
