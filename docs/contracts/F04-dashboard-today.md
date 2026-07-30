@@ -38,10 +38,27 @@ type TodayProvider interface {
   timezone by the caller.
 - An error is rendered as a degraded panel, never as a blank page.
 
+## Amendment 2026-07-30 (Agent B, implementation)
+
+Two changes made while implementing, both recorded before Agent A wrote anything
+against this contract:
+
+1. **The DTOs live in `internal/web/views/today.go`, not in the handlers package.**
+   They are what the templ components take as input; putting them in `handlers`
+   forced either an import cycle or a second identical struct plus mapping code.
+   The seam is unchanged: `TodayProvider` still lives in `handlers` and returns
+   `views.Today`.
+2. **A row falls back to the phone number** when the customer name is unknown,
+   instead of rendering "—". A row titled "—" while we hold the caller's number
+   is useless at the desk. Nothing is invented: the number is shown only if the
+   provider sent one, otherwise "Numéro inconnu".
+
+Everything else below stands as frozen.
+
 ## Data shape
 
-Declared in `internal/adapters/handlers/dashboard_contract.go`. Presentation DTOs:
-no domain types, so the domain never depends on the UI.
+Declared in `internal/web/views/today.go`. Presentation DTOs: no domain types, so
+the domain never depends on the UI.
 
 ```go
 type Today struct {

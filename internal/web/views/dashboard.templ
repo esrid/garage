@@ -1,0 +1,115 @@
+package views
+
+import "time"
+import "strconv"
+
+// DashboardPage is GET /app.
+//
+// The refresh control is a plain link to /app: without JavaScript it reloads
+// the page, and htmx upgrades it to swap only the panels. Progressive
+// enhancement, not a dead button.
+templ DashboardPage(data Today, degraded bool) {
+	@Layout("Aujourd'hui — Atelier IA", "/app") {
+		<div class="page-header">
+			<h1>Aujourd'hui</h1>
+			<p class="page-subtitle">{ frenchDate(data.Day) }</p>
+			<a
+				class="btn btn-secondary page-action"
+				href="/app"
+				hx-get="/app/today"
+				hx-target="#today"
+				hx-swap="outerHTML"
+			>Rafraîchir</a>
+		</div>
+		@TodayPanels(data, degraded)
+	}
+}
+
+// TodayPanels is GET /app/today. The full page embeds this same component, so
+// an htmx refresh and a full page load can never drift apart.
+templ TodayPanels(data Today, degraded bool) {
+	if degraded {
+		<div class="panel" id="today">
+			<p class="empty" role="status">
+				Les données du jour sont momentanément indisponibles. Réessayez dans un instant.
+			</p>
+		</div>
+	} else {
+		<div class="panel-grid" id="today">
+			@panel("Appels", "panel-calls", len(data.Calls), "appels") {
+				for _, call := range data.Calls {
+					<li class="item">
+						<time class="item-time" datetime={ call.At.Format(time.RFC3339) }>
+							{ call.At.Format("15:04") }
+						</time>
+						<span class="item-title">{ callerLabel(call) }</span>
+						<span class={ "badge", badgeTone(call.Outcome) }>{ statusLabel(call.Outcome) }</span>
+						<span class="item-detail">{ callDetail(call) }</span>
+					</li>
+				}
+			}
+			@panel("Rendez-vous", "panel-rdv", len(data.Appointments), "rendez-vous") {
+				for _, appointment := range data.Appointments {
+					<li class="item">
+						<time class="item-time" datetime={ appointment.Start.Format(time.RFC3339) }>
+							{ appointment.Start.Format("15:04") }
+						</time>
+						<span class="item-title">{ orDash(appointment.CustomerName) }</span>
+						<span class={ "badge", badgeTone(appointment.Status) }>
+							{ statusLabel(appointment.Status) }
+						</span>
+						<span class="item-detail">
+							{ orDash(appointment.Vehicle) }
+							{ " · " }
+							if appointment.Plate != "" {
+								<span class="item-plate">{ appointment.Plate }</span>
+							} else {
+								{ "—" }
+							}
+							{ " · " }
+							{ orDash(appointment.Service) }
+						</span>
+					</li>
+				}
+			}
+			@panel("À traiter", "panel-tasks", len(data.Tasks), "demandes") {
+				for _, task := range data.Tasks {
+					<li class="item">
+						<time class="item-time" datetime={ task.CreatedAt.Format(time.RFC3339) }>
+							{ task.CreatedAt.Format("15:04") }
+						</time>
+						<span class="item-title">{ taskLabel(task) }</span>
+						<span class={ "badge", badgeTone(task.Kind) }>{ statusLabel(task.Kind) }</span>
+						<span class="item-detail">{ taskDetail(task) }</span>
+					</li>
+				}
+			}
+		</div>
+	}
+}
+
+// panel wraps the three lists. They differ in content, not in shape, so they
+// share one component instead of three lookalikes.
+//
+// The count carries a visually-hidden noun: "Appels 3" alone is ambiguous to a
+// screen reader.
+templ panel(title string, id string, count int, countLabel string) {
+	<section class="panel" aria-labelledby={ id }>
+		<div class="panel-header">
+			<h2 class="panel-title" id={ id }>{ title }</h2>
+			<span class="panel-count">
+				{ strconv.Itoa(count) }
+				<span class="visually-hidden">{ " " + countLabel }</span>
+			</span>
+		</div>
+		<div class="panel-body">
+			if count == 0 {
+				<p class="empty">Rien à afficher aujourd'hui.</p>
+			} else {
+				<ul class="item-list">
+					{ children... }
+				</ul>
+			}
+		</div>
+	</section>
+}

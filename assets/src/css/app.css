@@ -209,6 +209,12 @@ a {
   font-size: var(--font-size-sm);
 }
 
+/* Pushes a page-level action to the trailing edge, away from the title text,
+ * so it reads as a control and not as part of the heading. */
+.page-action {
+  margin-inline-start: auto;
+}
+
 /* ------------------------------------------------------------- panel --- */
 
 /* Column layout: panels stack on phones, share the row when there is space.

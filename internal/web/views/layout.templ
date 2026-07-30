@@ -21,6 +21,9 @@ templ Layout(title string, currentPath string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/css/app.css"/>
+			// Self-hosted, version pinned in the filename. htmx is an
+			// enhancement: every page must still work if this never loads.
+			<script src="/static/js/htmx-2.0.10.min.js" defer></script>
 		</head>
 		<body>
 			<a class="skip-link" href="#main">Aller au contenu</a>

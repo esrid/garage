@@ -8,95 +8,21 @@
   </head>
   <body>
     <!--
-      Visual reference for app.css. Open it directly in a browser: no server, no
-      build step. Demo content only — the real markup lives in the templ views,
-      which reuse these exact classes.
+      Visual reference for the atoms in app.css. Open it directly in a browser:
+      no server, no build step.
+
+      Scope on purpose: atoms only. Composed views (the shell, panels, item
+      rows) live in the templ components and are seen at /app in the running
+      app. Duplicating them here would give us two versions of the same markup
+      and one of them would quietly go stale.
     -->
-    <a class="skip-link" href="#main">Aller au contenu</a>
-
-    <header class="app-header">
-      <a class="app-brand" href="/app">Atelier IA</a>
-      <nav class="app-nav" aria-label="Navigation principale">
-        <a class="app-nav-link" href="/app" aria-current="page">Aujourd'hui</a>
-        <a class="app-nav-link" href="/app/planning">Planning</a>
-        <a class="app-nav-link" href="/app/clients">Clients</a>
-      </nav>
-    </header>
-
-    <main class="app-main" id="main">
+    <main class="app-main">
       <div class="page-header">
         <h1>Styleguide</h1>
-        <p class="page-subtitle">Composants de base — jeu de données de démonstration</p>
+        <p class="page-subtitle">Atomes — la vue composée est sur /app</p>
       </div>
 
-      <!-- Dashboard panels: the shape F04 renders. -->
-      <div class="panel-grid">
-        <section class="panel" aria-labelledby="panel-calls">
-          <div class="panel-header">
-            <h2 class="panel-title" id="panel-calls">Appels</h2>
-            <span class="panel-count">3<span class="visually-hidden"> appels</span></span>
-          </div>
-          <div class="panel-body">
-            <ul class="item-list">
-              <li class="item">
-                <time class="item-time" datetime="2026-07-30T08:12">08:12</time>
-                <span class="item-title">Marie Lubin</span>
-                <span class="badge badge-success">RDV pris</span>
-                <span class="item-detail">Vidange + révision — 4 min 20 s</span>
-              </li>
-              <li class="item">
-                <time class="item-time" datetime="2026-07-30T09:03">09:03</time>
-                <span class="item-title">Numéro inconnu</span>
-                <span class="badge badge-info">Rappel</span>
-                <span class="item-detail">Devis embrayage — 2 min 05 s</span>
-              </li>
-              <li class="item">
-                <time class="item-time" datetime="2026-07-30T10:41">10:41</time>
-                <span class="item-title">Jean-Claude Sainte-Rose</span>
-                <span class="badge badge-warning">Transféré</span>
-                <span class="item-detail">Demande hors périmètre — 1 min 12 s</span>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="panel" aria-labelledby="panel-rdv">
-          <div class="panel-header">
-            <h2 class="panel-title" id="panel-rdv">Rendez-vous</h2>
-            <span class="panel-count">2<span class="visually-hidden"> rendez-vous</span></span>
-          </div>
-          <div class="panel-body">
-            <ul class="item-list">
-              <li class="item">
-                <time class="item-time" datetime="2026-07-30T09:30">09:30</time>
-                <span class="item-title">Marie Lubin</span>
-                <span class="badge badge-success">Confirmé</span>
-                <span class="item-detail">
-                  Clio IV · <span class="item-plate">ab-123-cd</span> · Vidange
-                </span>
-              </li>
-              <li class="item">
-                <time class="item-time" datetime="2026-07-30T14:00">14:00</time>
-                <span class="item-title">Garage Morne-Rouge</span>
-                <span class="badge">En attente</span>
-                <span class="item-detail">Hilux · — · Diagnostic freinage</span>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="panel" aria-labelledby="panel-tasks">
-          <div class="panel-header">
-            <h2 class="panel-title" id="panel-tasks">À traiter</h2>
-            <span class="panel-count">0<span class="visually-hidden"> demandes</span></span>
-          </div>
-          <div class="panel-body">
-            <p class="empty">Aucune demande à traiter aujourd'hui.</p>
-          </div>
-        </section>
-      </div>
-
-      <h2 style="margin-block: var(--space-10) var(--space-4)">Badges</h2>
+      <h2>Badges</h2>
       <p style="display: flex; flex-wrap: wrap; gap: var(--space-2)">
         <span class="badge">Neutre</span>
         <span class="badge badge-success">Succès</span>
@@ -109,9 +35,14 @@
       <p style="display: flex; flex-wrap: wrap; gap: var(--space-2)">
         <button class="btn" type="button">Action principale</button>
         <button class="btn btn-secondary" type="button">Action secondaire</button>
-        <button class="btn btn-quiet" type="button">Rafraîchir</button>
+        <button class="btn btn-quiet" type="button">Action discrète</button>
         <button class="btn" type="button" disabled>Indisponible</button>
       </p>
+
+      <h2 style="margin-block: var(--space-10) var(--space-4)">État vide</h2>
+      <div class="panel">
+        <p class="empty">Rien à afficher aujourd'hui.</p>
+      </div>
 
       <h2 style="margin-block: var(--space-10) var(--space-4)">Formulaire</h2>
       <form style="max-width: var(--content-width)">
