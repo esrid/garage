@@ -18,7 +18,7 @@ type handler struct {
 	readiness readinessChecker
 }
 
-func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools) http.Handler {
+func New(readiness readinessChecker, dashboard *handlers.Dashboard, planning *handlers.Planning, appointments *handlers.AppointmentMutations, customerLookup *voice.CustomerLookup, appointmentTools *voice.AppointmentTools) http.Handler {
 	h := &handler{readiness: readiness}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", h.health)
@@ -26,6 +26,8 @@ func New(readiness readinessChecker, dashboard *handlers.Dashboard, appointments
 
 	mux.HandleFunc("GET /app", dashboard.Page)
 	mux.HandleFunc("GET /app/today", dashboard.Fragment)
+	mux.HandleFunc("GET /app/planning", planning.Page)
+	mux.HandleFunc("GET /app/planning/day", planning.Fragment)
 	mux.HandleFunc("POST /app/appointments", appointments.Book)
 	mux.HandleFunc("POST /app/appointments/{id}/reschedule", appointments.Reschedule)
 	mux.HandleFunc("POST /app/appointments/{id}/cancel", appointments.Cancel)

@@ -484,3 +484,101 @@ a {
   opacity: 0.6;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
+
+/* ----------------------------------------------------------- planning --- */
+
+/* The workshop day (F02B). Openings, free slots and the rendez-vous rows reuse
+ * .panel, .item and .badge; only what has no equivalent lives here. */
+
+.day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-6);
+}
+
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.duration-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block-end: var(--space-6);
+}
+
+/* A notice explains why the page shows less than usual: unreadable date,
+ * unavailable planning. Warning tokens, not danger: nothing is broken. */
+.notice {
+  margin-block-end: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-warning-text);
+  background: var(--color-warning-surface);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+}
+
+/* Free slots are read at a glance, so they wrap as chips instead of stacking as
+ * one row per slot: a whole morning fits on two lines. */
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+}
+
+.slot {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.planning-appointments {
+  margin-block-start: var(--space-4);
+}
+
+/* Move and cancel stay folded: cancelling is terminal, so it takes a deliberate
+ * second gesture. <details> gives that for free, keyboard included. */
+.item-actions {
+  grid-column: 1 / -1;
+  margin-block-start: var(--space-2);
+
+  & summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target-min);
+    color: var(--color-action);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+  }
+}
+
+.row-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block-start: var(--space-3);
+}
+
+/* Cancelling is terminal and sits in every row, so it stays quiet — but it must
+ * read as a control, in the danger colour, not as a caption. */
+.row-form .btn-quiet {
+  color: var(--color-danger-text);
+  border-color: var(--color-danger);
+
+  &:hover {
+    color: var(--color-danger-text);
+    background: var(--color-danger-surface);
+  }
+}

@@ -44,12 +44,13 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	readiness := services.NewReadiness(database)
 	scheduling := appointment.NewService(database, database, database)
 	dashboard := handlers.NewDashboard(handlers.NewAppointmentTodayProvider(scheduling))
+	planning := handlers.NewPlanning(scheduling)
 	appointmentMutations := handlers.NewAppointmentMutations(scheduling)
 	customerLookup := voice.NewCustomerLookup(customer.NewService(database), voiceAuthenticator)
 	appointmentTools := voice.NewAppointmentTools(scheduling, voiceAuthenticator)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpserver.New(readiness, dashboard, appointmentMutations, customerLookup, appointmentTools),
+		Handler:           httpserver.New(readiness, dashboard, planning, appointmentMutations, customerLookup, appointmentTools),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 		ReadTimeout:       cfg.ReadTimeout,
 		WriteTimeout:      cfg.WriteTimeout,

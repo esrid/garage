@@ -35,13 +35,30 @@ func TestLayoutRendersAccessibleShell(t *testing.T) {
 	}
 }
 
+// Exactly one nav link may claim to be the current page. Now that the nav lists
+// several routes, the test names them: a shared prefix must not light up two.
 func TestLayoutMarksCurrentNavLink(t *testing.T) {
-	if current := renderLayout(t, "/app"); !strings.Contains(current, `aria-current="page"`) {
-		t.Error("the active route is not marked with aria-current")
+	const current = ` aria-current="page"`
+
+	today := renderLayout(t, "/app")
+	if !strings.Contains(today, `href="/app"`+current) {
+		t.Error("on /app the today link is not marked with aria-current")
 	}
-	// On another route the same link must not claim to be the current page.
-	if other := renderLayout(t, "/app/planning"); strings.Contains(other, `aria-current="page"`) {
-		t.Error("a non-active route is marked with aria-current")
+	if strings.Contains(today, `href="/app/planning"`+current) {
+		t.Error("on /app the planning link claims to be the current page")
+	}
+
+	planning := renderLayout(t, "/app/planning")
+	if !strings.Contains(planning, `href="/app/planning"`+current) {
+		t.Error("on /app/planning the planning link is not marked with aria-current")
+	}
+	if strings.Contains(planning, `href="/app"`+current) {
+		t.Error("on /app/planning the today link claims to be the current page")
+	}
+
+	// A route the nav does not list marks nothing.
+	if other := renderLayout(t, "/app/unlisted"); strings.Contains(other, current) {
+		t.Error("a route absent from the nav marked a link as current")
 	}
 }
 

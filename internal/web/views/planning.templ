@@ -1,0 +1,222 @@
+package views
+
+import "strconv"
+import "time"
+
+// PlanningPage is GET /app/planning?day=YYYY-MM-DD.
+//
+// Day navigation is plain links and a native date input: no JavaScript, no date
+// picker dependency. The duration filter inside the fragment is the only
+// htmx-enhanced control, and it submits as an ordinary GET form without it.
+templ PlanningPage(planning Planning) {
+	@Layout("Planning — Atelier IA", "/app/planning") {
+		<div class="page-header">
+			<h1>Planning</h1>
+			<p class="page-subtitle">
+				{ frenchDate(planning.Day) }
+				if planning.Timezone != "" {
+					{ " · " + planning.Timezone }
+				}
+			</p>
+		</div>
+		<nav class="day-nav" aria-label="Choisir la journée">
+			<a
+				class="btn btn-secondary"
+				href={ templ.SafeURL("/app/planning?day=" + shiftDayParam(planning.Day, -1) + "&duration_minutes=" + strconv.Itoa(planning.DurationMinutes)) }
+				rel="prev"
+			>Jour précédent</a>
+			<form class="day-picker" method="get" action="/app/planning">
+				<label class="visually-hidden" for="planning-day-input">Journée</label>
+				<input
+					class="input"
+					type="date"
+					id="planning-day-input"
+					name="day"
+					value={ dayParam(planning.Day) }
+				/>
+				<input type="hidden" name="duration_minutes" value={ strconv.Itoa(planning.DurationMinutes) }/>
+				<button class="btn btn-secondary" type="submit">Voir</button>
+			</form>
+			<a
+				class="btn btn-secondary"
+				href={ templ.SafeURL("/app/planning?day=" + shiftDayParam(planning.Day, 1) + "&duration_minutes=" + strconv.Itoa(planning.DurationMinutes)) }
+				rel="next"
+			>Jour suivant</a>
+		</nav>
+		@PlanningDay(planning)
+	}
+}
+
+// PlanningDay is GET /app/planning/day: the same markup the full page embeds, so
+// an htmx swap and a reload can never drift apart.
+templ PlanningDay(planning Planning) {
+	<div class="planning-day" id="planning-day">
+		for _, notice := range planning.Notices {
+			<p class="notice" role="status">{ notice }</p>
+		}
+		if !planning.Degraded {
+			<form
+				class="duration-form"
+				method="get"
+				action="/app/planning"
+				hx-get="/app/planning/day"
+				hx-target="#planning-day"
+				hx-swap="outerHTML"
+			>
+				<input type="hidden" name="day" value={ dayParam(planning.Day) }/>
+				<div class="field">
+					<label class="field-label" for="planning-duration">Durée recherchée</label>
+					<select class="select" id="planning-duration" name="duration_minutes">
+						for _, minutes := range PlanningDurations {
+							<option
+								value={ strconv.Itoa(minutes) }
+								selected?={ minutes == planning.DurationMinutes }
+							>{ minutesLabel(minutes) }</option>
+						}
+					</select>
+				</div>
+				<button class="btn btn-secondary" type="submit">Voir les créneaux</button>
+			</form>
+			<div class="panel-grid">
+				@planningOpenings(planning)
+				@planningSlots(planning)
+			</div>
+			@planningAppointments(planning)
+		}
+	</div>
+}
+
+templ planningOpenings(planning Planning) {
+	@panel("Ouverture", "panel-openings", len(planning.Openings), "plages") {
+		for _, opening := range planning.Openings {
+			<li class="item">
+				// No separate time column here: the title already is the range, and
+				// printing "08:00" next to "08:00 – 12:00" reads as a glitch.
+				<time class="item-title" datetime={ opening.Start.Format(time.RFC3339) }>
+					{ openingLabel(opening) }
+				</time>
+				<span class="item-detail">{ capacityLabel(opening.Capacity) }</span>
+			</li>
+		}
+	}
+}
+
+templ planningSlots(planning Planning) {
+	<section class="panel" aria-labelledby="panel-slots">
+		<div class="panel-header">
+			<h2 class="panel-title" id="panel-slots">Créneaux libres</h2>
+			<span class="panel-count">
+				{ strconv.Itoa(len(planning.Slots)) }
+				<span class="visually-hidden">{ " créneaux de " + minutesLabel(planning.DurationMinutes) }</span>
+			</span>
+		</div>
+		<div class="panel-body">
+			if planning.SlotsUnavailable {
+				// The day was read, availability was not. Saying "journée complète"
+				// here would state something we do not know.
+				<p class="empty">
+					Les créneaux libres ne sont pas calculables pour l'instant.
+					Les rendez-vous ci-dessous sont à jour.
+				</p>
+			} else if len(planning.Openings) == 0 {
+				// The contract is explicit: no stored opening means no slot. Never
+				// display a default 08:00–17:00 the garage never validated.
+				<p class="empty">
+					Aucune ouverture enregistrée pour cette journée : aucun créneau
+					n'est proposé.
+				</p>
+			} else if len(planning.Slots) == 0 {
+				<p class="empty">
+					{ "Journée complète pour " + minutesLabel(planning.DurationMinutes) + "." }
+				</p>
+			} else {
+				<ul class="slot-list">
+					for _, slot := range planning.Slots {
+						<li class="slot">
+							<time datetime={ slot.Start.Format(time.RFC3339) }>{ slotLabel(slot) }</time>
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</section>
+}
+
+templ planningAppointments(planning Planning) {
+	<section class="panel planning-appointments" aria-labelledby="panel-planning-rdv">
+		<div class="panel-header">
+			<h2 class="panel-title" id="panel-planning-rdv">Rendez-vous</h2>
+			<span class="panel-count">
+				{ strconv.Itoa(len(planning.Appointments)) }
+				<span class="visually-hidden"> rendez-vous</span>
+			</span>
+		</div>
+		<div class="panel-body">
+			if len(planning.Appointments) == 0 {
+				<p class="empty">Aucun rendez-vous pour cette journée.</p>
+			} else {
+				<ul class="item-list">
+					for _, item := range planning.Appointments {
+						<li class="item">
+							<time class="item-time" datetime={ item.Start.Format(time.RFC3339) }>
+								{ hourLabel(item.Start) }
+							</time>
+							<span class="item-title">{ orDash(item.CustomerName) }</span>
+							<span class={ "badge", badgeTone(item.Status) }>{ statusLabel(item.Status) }</span>
+							<span class="item-detail">
+								{ rangeLabel(item.Start, item.End) }
+								{ " · " + minutesLabel(appointmentMinutes(item)) }
+								{ " · " + orDash(item.Vehicle) }
+								if item.Plate != "" {
+									{ " · " }
+									<span class="item-plate">{ item.Plate }</span>
+								}
+								{ " · " + orDash(item.Service) }
+							</span>
+							if planningActionable(item.Status) {
+								@planningRowActions(planning, item)
+							}
+						</li>
+					}
+				</ul>
+			}
+		</div>
+	</section>
+}
+
+// planningRowActions posts to the two mutation routes Agent A owns (F02A). The
+// forms are native and unenhanced: a rendez-vous must never move because a
+// script fired twice.
+//
+// Collapsed inside <details> on purpose — cancelling is terminal, so it takes a
+// deliberate second gesture instead of one stray click in a list.
+templ planningRowActions(planning Planning, item Appointment) {
+	<details class="item-actions">
+		<summary>Déplacer ou annuler</summary>
+		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/reschedule") }>
+			if options := rescheduleOptions(planning, item); len(options) > 0 {
+				<div class="field">
+					<label class="field-label" for={ "move-" + item.ID }>
+						{ "Nouveau créneau (" + minutesLabel(appointmentMinutes(item)) + ")" }
+					</label>
+					<select class="select" id={ "move-" + item.ID } name="start_at">
+						for _, slot := range options {
+							<option value={ slot.Start.Format(time.RFC3339) }>{ slotLabel(slot) }</option>
+						}
+					</select>
+				</div>
+				<input type="hidden" name="duration_minutes" value={ strconv.Itoa(appointmentMinutes(item)) }/>
+				<input type="hidden" name="idempotency_key" value={ rescheduleKey(item) }/>
+				<button class="btn btn-secondary" type="submit">Déplacer</button>
+			} else {
+				<p class="field-hint">
+					{ "Aucun autre créneau de " + minutesLabel(appointmentMinutes(item)) + " sur cette journée." }
+				</p>
+			}
+		</form>
+		<form class="row-form" method="post" action={ templ.SafeURL("/app/appointments/" + item.ID + "/cancel") }>
+			<input type="hidden" name="idempotency_key" value={ cancelKey(item) }/>
+			<button class="btn btn-quiet" type="submit">Annuler le rendez-vous</button>
+		</form>
+	</details>
+}
